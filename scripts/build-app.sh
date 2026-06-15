@@ -38,13 +38,14 @@ PLIST
 
 echo "==> codesign"
 SIGN_IDENTITY="${CODESIGN_IDENTITY:-TokenMac Local}"
-# find-certificate 로 존재 확인 (find-identity -v 는 trust 된 것만 보여줌)
-if security find-certificate -c "$SIGN_IDENTITY" >/dev/null 2>&1; then
+# 안정적 Keychain ACL 을 위해서는 인증서 존재가 아니라 유효한 codesigning identity 가 필요하다.
+if security find-identity -v -p codesigning | grep -F "\"$SIGN_IDENTITY\"" >/dev/null; then
     # 안정적 자체 서명 신원 → 재빌드해도 Keychain "항상 허용" 유지
     codesign --force -s "$SIGN_IDENTITY" "$APP"
 else
     # 인증서 없음 → ad-hoc (빌드마다 Keychain 재프롬프트 가능, scripts/create-signing-cert.sh 로 해결)
-    echo "   ('$SIGN_IDENTITY' 신원 없음 → ad-hoc 서명)"
+    echo "   ('$SIGN_IDENTITY' 유효 codesigning identity 없음 → ad-hoc 서명)"
+    echo "   반복 Keychain 허용 프롬프트를 줄이려면 ./scripts/create-signing-cert.sh 실행 후 다시 빌드하세요."
     codesign --force -s - "$APP"
 fi
 

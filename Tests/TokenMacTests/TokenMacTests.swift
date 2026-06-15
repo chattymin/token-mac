@@ -1,6 +1,10 @@
 import XCTest
 @testable import TokenMac
 
+#if os(macOS)
+import Security
+#endif
+
 final class TokenFormatterTests: XCTestCase {
     func testCompact() {
         XCTAssertEqual(TokenFormatter.compact(0), "0")
@@ -132,3 +136,18 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(status.sevenDay?.utilization, 16.0)
     }
 }
+
+#if os(macOS)
+final class KeychainNoUIQueryTests: XCTestCase {
+    func testNoUIQueryAddsAuthenticationContextAndFailPolicy() {
+        var query: [String: Any] = [:]
+
+        KeychainNoUIQuery.apply(to: &query)
+
+        XCTAssertNotNil(query[kSecUseAuthenticationContext as String])
+        XCTAssertEqual(
+            query[kSecUseAuthenticationUI as String] as? String,
+            KeychainNoUIQuery.uiFailPolicyForTesting())
+    }
+}
+#endif

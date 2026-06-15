@@ -7,14 +7,31 @@ set -euo pipefail
 IDENTITY="TokenMac Local"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
-# find-identity -v 는 trust 된 것만 보여줌 — self-signed 는 find-certificate 로 확인
-if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
-    echo "이미 존재: '$IDENTITY' — 재생성하지 않음 (재생성 시 기존 서명과 불일치)"
-    exit 0
-fi
+identity_is_valid() {
+    security find-identity -v -p codesigning | grep -F "\"$IDENTITY\"" >/dev/null
+}
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+
+if identity_is_valid; then
+    echo "이미 유효함: '$IDENTITY' — 재생성하지 않음 (재생성 시 기존 서명과 불일치)"
+    exit 0
+fi
+
+# 인증서가 있지만 trust 설정만 빠진 상태면 재생성하지 않고 기존 인증서를 codesign 용도로 trust 한다.
+if security find-certificate -c "$IDENTITY" -p "$KEYCHAIN" > "$TMP/existing-cert.pem" 2>/dev/null \
+    && [ -s "$TMP/existing-cert.pem" ]; then
+    echo "==> 기존 '$IDENTITY' 인증서를 code signing 용도로 trust"
+    security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/existing-cert.pem" 2>/dev/null || true
+    if identity_is_valid; then
+        echo "'$IDENTITY' 유효 codesigning identity 확인됨"
+        exit 0
+    fi
+    echo "기존 '$IDENTITY' 인증서가 있지만 유효한 codesigning identity 가 아닙니다."
+    echo "Keychain Access 에서 '$IDENTITY' 인증서/개인키를 삭제한 뒤 이 스크립트를 다시 실행하세요."
+    exit 1
+fi
 
 # macOS 기본 LibreSSL 사용 — Homebrew OpenSSL 3 의 p12 는 -legacy 없이는 security 가 못 읽음
 OPENSSL=/usr/bin/openssl
@@ -44,11 +61,12 @@ echo "==> self-signed 코드서명 인증서 생성"
 
 echo "==> login keychain 에 import (codesign 사용 허용)"
 security import "$TMP/identity.p12" -k "$KEYCHAIN" -P "$P12PW" -T /usr/bin/codesign
+security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem" 2>/dev/null || true
 
 echo "완료."
-security find-certificate -c "$IDENTITY" >/dev/null 2>&1 \
-    && echo "'$IDENTITY' 등록 확인됨 (codesign 사용 가능)" \
-    || echo "경고: 등록 확인 실패"
+identity_is_valid \
+    && echo "'$IDENTITY' 유효 codesigning identity 확인됨" \
+    || echo "경고: 유효 codesigning identity 확인 실패"
 echo
 echo "다음: ./scripts/build-app.sh 가 이 신원으로 서명합니다."
 echo "첫 빌드 시 'codesign 이 키를 사용하려 함' 프롬프트가 1회 뜨면 '항상 허용'을 누르세요."

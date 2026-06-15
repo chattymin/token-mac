@@ -49,6 +49,17 @@ final class UsageStore {
     var showLimitInMenu: Bool {
         didSet { UserDefaults.standard.set(showLimitInMenu, forKey: "showLimitInMenu") }
     }
+    var disableKeychainAccess: Bool {
+        didSet {
+            KeychainAccessGate.isDisabled = disableKeychainAccess
+            if disableKeychainAccess {
+                limits = nil
+                limitsAvailable = false
+            } else {
+                Task { await refresh() }
+            }
+        }
+    }
 
     static let intervalPresets: [(label: String, value: TimeInterval)] = [
         ("수동", 0), ("1분", 60), ("2분", 120), ("5분", 300), ("15분", 900),
@@ -159,6 +170,7 @@ final class UsageStore {
         showTokensInMenu = d.object(forKey: "showTokensInMenu") as? Bool ?? true
         showCostInMenu = d.object(forKey: "showCostInMenu") as? Bool ?? false
         showLimitInMenu = d.object(forKey: "showLimitInMenu") as? Bool ?? false
+        disableKeychainAccess = d.object(forKey: "disableKeychainAccess") as? Bool ?? false
 
         reschedule()
 
@@ -296,12 +308,19 @@ final class UsageStore {
         }
 
         // ── 한도 조회 (Keychain 프롬프트로 블로킹될 수 있어 마지막)
-        do {
-            limits = try await limitsProvider.fetch()
-            limitsAvailable = true
-        } catch {
-            // 비공식 endpoint 실패 → 섹션 숨김, 토큰 표시는 무영향
-            if limits == nil { limitsAvailable = false }
+        if disableKeychainAccess {
+            limits = nil
+            limitsAvailable = false
+            AppLog.write("limits skipped: keychain access disabled")
+        } else {
+            do {
+                limits = try await limitsProvider.fetch(allowKeychainPrompt: false)
+                limitsAvailable = true
+            } catch {
+                // 비공식 endpoint 실패 → 섹션 숨김, 토큰 표시는 무영향
+                if limits == nil { limitsAvailable = false }
+                AppLog.write("limits unavailable: \(error)")
+            }
         }
 
         checkLimitNotifications()

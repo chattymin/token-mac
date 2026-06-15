@@ -39,6 +39,13 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
+                Toggle("Keychain 접근 끄기", isOn: $store.disableKeychainAccess)
+                Text("켜면 공식 한도 % 조회를 건너뜁니다")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
                 Toggle("로그인 시 자동 시작", isOn: $launchAtLogin)
                     .disabled(!isBundledApp)
                     .onChange(of: launchAtLogin) { _, newValue in
