@@ -4,6 +4,10 @@
 집계 기준은 [ccusage](https://github.com/ryoppippi/ccusage) `totalTokens`
 (input + output + cache_creation + cache_read, 로컬 날짜)이다.
 
+<p align="center">
+  <img src="assets/screenshot.png" width="400" alt="TokenMac 팝오버 — 오늘 토큰량, provider/토큰타입 분해, 주·월 누적, 공식 5h/주간 한도와 소진 예측">
+</p>
+
 - Claude Code / Codex 토큰·비용을 상태바에 실시간 표시
 - 5시간 세션·주간 한도(%) 및 리셋 카운트다운 (Claude 공식 OAuth usage endpoint)
 - 현재 burn rate 기반 한도 소진 시각 예측
