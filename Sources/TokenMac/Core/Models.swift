@@ -19,7 +19,8 @@ struct DailyUsage: Decodable, Sendable {
         inputTokens = try c.decodeIfPresent(Int.self, forKey: .inputTokens) ?? 0
         outputTokens = try c.decodeIfPresent(Int.self, forKey: .outputTokens) ?? 0
         cacheCreationTokens = try c.decodeIfPresent(Int.self, forKey: .cacheCreationTokens) ?? 0
-        cacheReadTokens = try c.decodeIfPresent(Int.self, forKey: .cacheReadTokens) ?? 0
+        cacheReadTokens = try c.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
+            ?? c.decodeIfPresent(Int.self, forKey: .cachedInputTokens) ?? 0
         // totalTokens 없으면 4종 토큰 합으로 폴백
         totalTokens = try c.decodeIfPresent(Int.self, forKey: .totalTokens)
             ?? (inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens)
@@ -40,7 +41,7 @@ struct DailyUsage: Decodable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case date, period, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens
-        case totalTokens, totalCost, costUSD
+        case cachedInputTokens, totalTokens, totalCost, costUSD
     }
 }
 
@@ -118,10 +119,12 @@ struct PeriodUsage: Decodable, Sendable {
         let input = try c.decodeIfPresent(Int.self, forKey: .inputTokens) ?? 0
         let output = try c.decodeIfPresent(Int.self, forKey: .outputTokens) ?? 0
         let cacheW = try c.decodeIfPresent(Int.self, forKey: .cacheCreationTokens) ?? 0
-        let cacheR = try c.decodeIfPresent(Int.self, forKey: .cacheReadTokens) ?? 0
+        let cacheR = try c.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
+            ?? c.decodeIfPresent(Int.self, forKey: .cachedInputTokens) ?? 0
         totalTokens = try c.decodeIfPresent(Int.self, forKey: .totalTokens)
             ?? (input + output + cacheW + cacheR)
-        totalCost = try c.decodeIfPresent(Double.self, forKey: .totalCost) ?? 0
+        totalCost = try c.decodeIfPresent(Double.self, forKey: .totalCost)
+            ?? c.decodeIfPresent(Double.self, forKey: .costUSD) ?? 0
     }
 
     init(period: String, totalTokens: Int, totalCost: Double) {
@@ -130,9 +133,15 @@ struct PeriodUsage: Decodable, Sendable {
         self.totalCost = totalCost
     }
 
+    init(period: String, daily: [DailyUsage]) {
+        self.period = period
+        totalTokens = daily.reduce(0) { $0 + $1.totalTokens }
+        totalCost = daily.reduce(0) { $0 + $1.totalCost }
+    }
+
     private enum CodingKeys: String, CodingKey {
         case week, month, period, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens
-        case totalTokens, totalCost
+        case cachedInputTokens, totalTokens, totalCost, costUSD
     }
 }
 

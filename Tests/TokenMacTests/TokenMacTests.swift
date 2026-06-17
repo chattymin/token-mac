@@ -43,6 +43,18 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(report.daily[0].totalTokens, 20_815_691)
     }
 
+    func testCodexDailyReportMapsCachedInputTokens() throws {
+        let json = """
+        {"daily":[{"date":"2026-06-17","inputTokens":10,"outputTokens":20,
+        "cachedInputTokens":30,"totalTokens":60,"costUSD":0.25}]}
+        """.data(using: .utf8)!
+
+        let report = try JSONDecoder().decode(DailyReport.self, from: json)
+
+        XCTAssertEqual(report.daily[0].cacheReadTokens, 30)
+        XCTAssertEqual(report.daily[0].totalCost, 0.25)
+    }
+
     func testDailyReportEmpty() throws {
         // ccusage-codex 데이터 없음 케이스
         let json = #"{"daily":[],"totals":null}"#.data(using: .utf8)!
@@ -90,6 +102,33 @@ final class ModelDecodingTests: XCTestCase {
         let m = try JSONDecoder().decode(MonthlyReport.self, from: monthly)
         XCTAssertEqual(m.monthly.last?.period, "2026-06")
         XCTAssertEqual(m.monthly.last?.totalTokens, 671_185_849)
+    }
+
+    func testCodexMonthlyReportCostUSD() throws {
+        let json = """
+        {"monthly":[{"month":"2026-06","inputTokens":10,"outputTokens":20,
+        "cachedInputTokens":30,"totalTokens":60,"costUSD":0.25}]}
+        """.data(using: .utf8)!
+
+        let report = try JSONDecoder().decode(MonthlyReport.self, from: json)
+
+        XCTAssertEqual(report.monthly[0].totalTokens, 60)
+        XCTAssertEqual(report.monthly[0].totalCost, 0.25)
+    }
+
+    func testPeriodUsageSumsDailyRows() {
+        let daily = [
+            DailyUsage(date: "2026-06-16", inputTokens: 1, outputTokens: 2,
+                       cacheCreationTokens: 3, cacheReadTokens: 4, totalTokens: 10, totalCost: 0.1),
+            DailyUsage(date: "2026-06-17", inputTokens: 5, outputTokens: 6,
+                       cacheCreationTokens: 7, cacheReadTokens: 8, totalTokens: 26, totalCost: 0.2),
+        ]
+
+        let period = PeriodUsage(period: "2026-06-14", daily: daily)
+
+        XCTAssertEqual(period.period, "2026-06-14")
+        XCTAssertEqual(period.totalTokens, 36)
+        XCTAssertEqual(period.totalCost, 0.3, accuracy: 0.001)
     }
 
     func testBlockBurnRateDecoding() throws {
