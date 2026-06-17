@@ -174,6 +174,30 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertNil(status.sevenDayOpus)
         XCTAssertEqual(status.sevenDay?.utilization, 16.0)
     }
+
+    func testCodexRateLimitStatus() throws {
+        let json = """
+        {"rateLimits":{"limitId":"codex","limitName":null,
+        "primary":{"usedPercent":86,"windowDurationMins":300,"resetsAt":1781694161},
+        "secondary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1781855658},
+        "credits":{"hasCredits":false,"unlimited":false,"balance":null},
+        "individualLimit":null,"planType":"team","rateLimitReachedType":null},
+        "rateLimitsByLimitId":{"codex":{"limitId":"codex","limitName":null,
+        "primary":{"usedPercent":86,"windowDurationMins":300,"resetsAt":1781694161},
+        "secondary":{"usedPercent":58,"windowDurationMins":10080,"resetsAt":1781855658},
+        "credits":{"hasCredits":false,"unlimited":false,"balance":null},
+        "individualLimit":null,"planType":"team","rateLimitReachedType":null}}}
+        """.data(using: .utf8)!
+
+        let status = try JSONDecoder().decode(CodexRateLimitStatus.self, from: json)
+
+        XCTAssertEqual(status.codex.primary?.usedPercent, 86)
+        XCTAssertEqual(status.codex.primary?.displayName, "5시간 세션")
+        XCTAssertEqual(status.codex.secondary?.displayName, "주간")
+        XCTAssertEqual(status.codex.planType, "team")
+        XCTAssertTrue(status.hasVisibleLimit)
+        XCTAssertNotNil(status.codex.primary?.resetDate)
+    }
 }
 
 #if os(macOS)

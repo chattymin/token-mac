@@ -9,7 +9,7 @@
 </p>
 
 - Claude Code / Codex 토큰·비용을 상태바에 실시간 표시
-- 5시간 세션·주간 한도(%) 및 리셋 카운트다운 (Claude 공식 OAuth usage endpoint)
+- Claude Code / Codex 5시간 세션·주간 한도(%) 및 리셋 카운트다운
 - 현재 burn rate 기반 한도 소진 시각 예측
 - 임계값 초과 시 알림
 - burn rate에 따라 회전 속도가 변하는 메뉴바 코인 애니메이션
@@ -23,7 +23,7 @@
 - **숫자** — 오늘 모든 provider(Claude Code·Codex) 합산 토큰. `200.7M` = 200,700,000 (`K`/`M`/`B` 단위).
 - **코인 색** — 평소 골드, 한도 임박 예측 또는 임계 초과 시 빨강 (위 스크린샷은 경고 상태).
 - **코인 회전** — burn rate가 빠를수록 빨리 회전 (설정에서 끌 수 있음).
-- 설정에서 **비용($)**, **5시간 한도(%)**도 메뉴바에 함께 표시할 수 있다.
+- 설정에서 **비용($)**, **한도(%)**도 메뉴바에 함께 표시할 수 있다.
 
 아이콘을 클릭하면 위의 상세 팝오버가 열린다.
 
@@ -33,7 +33,6 @@
 
 ```bash
 npm install -g ccusage
-# Codex 사용량도 보려면 ccusage-codex 추가 설치
 ```
 
 탐색 경로: `/opt/homebrew/bin` → `/usr/local/bin`. 미설치 시 해당 provider는 UI에서 자동 숨김.
@@ -64,10 +63,11 @@ open /Applications/TokenMac.app
 | 소스 | 용도 | 비고 |
 |---|---|---|
 | `ccusage` | Claude Code daily/blocks/weekly/monthly | 미설치 시 숨김. ccusage 18.x·20.x 스키마 모두 지원 |
-| `ccusage-codex` | Codex daily | 데이터 없으면 UI에서 자동 숨김 |
-| Keychain `Claude Code-credentials` → `api.anthropic.com/api/oauth/usage` | 공식 5h/주간 한도 % | 비공식 endpoint — 실패 시 한도 섹션만 숨김. 최초 실행 시 Keychain 접근 허용 필요 |
+| `ccusage codex` | Codex daily/monthly | `ccusage codex weekly`가 없어서 주간은 daily 합산 |
+| Keychain `Claude Code-credentials` → `api.anthropic.com/api/oauth/usage` | Claude 공식 5h/주간 한도 % | 비공식 endpoint — 실패 시 Claude 한도만 숨김. 최초 실행 시 Keychain 접근 허용 필요 |
+| `codex app-server --stdio` → `account/rateLimits/read` | Codex 공식 5h/주간 한도 % | 모델 turn 없이 계정 한도 snapshot만 조회. 실패 시 Codex 한도만 숨김 |
 
-설계 원칙: `claude`/`codex` 등 AI CLI 바이너리는 절대 스폰하지 않는다 (ccusage 파서만 호출 — CodexBar issue #874 토큰 드레인 사고 교훈). Process 호출 지점은 `Sources/TokenMac/Core/ProcessRunner.swift` 단일.
+설계 원칙: 사용량 집계는 `claude`/`codex` AI CLI를 직접 실행하지 않고 ccusage 파서만 호출한다. Codex 한도는 `codex app-server`의 account snapshot만 읽으며 모델 turn은 시작하지 않는다. Process 호출 지점은 `Sources/TokenMac/Core/ProcessRunner.swift` 단일.
 
 ## 검증
 

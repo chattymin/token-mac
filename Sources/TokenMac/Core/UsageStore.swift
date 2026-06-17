@@ -15,6 +15,7 @@ final class UsageStore {
 
     private(set) var snapshots: [ProviderSnapshot] = []
     private(set) var limits: LimitStatus?
+    private(set) var codexLimits: CodexRateLimitStatus?
     private(set) var limitsAvailable = true
     private(set) var lastUpdated: Date?
     private(set) var isRefreshing = false
@@ -69,6 +70,7 @@ final class UsageStore {
 
     private let providers: [any UsageProvider]
     private let limitsProvider = OAuthLimitsProvider()
+    private let codexLimitsProvider = CodexRateLimitsProvider()
     private var timer: Timer?
     /// 같은 한도 블록(resets_at 기준)에 대해 알림 1회만 발화
     private var notifiedKeys: Set<String> = []
@@ -81,13 +83,22 @@ final class UsageStore {
         return snapshots.reduce(0) { $0 + ($1.today?.date == todayKey ? $1.todayTotalTokens : 0) }
     }
 
+    var hasAnyLimits: Bool {
+        limits != nil || codexLimits?.hasVisibleLimit == true
+    }
+
     var menuTitle: String {
         guard lastUpdated != nil else { return "—" }
         var parts: [String] = []
         if showTokensInMenu { parts.append(TokenFormatter.compact(todayTotalTokens)) }
         if showCostInMenu { parts.append(TokenFormatter.costCompact(todayCostTotal)) }
-        if showLimitInMenu, let utilization = limits?.fiveHour?.utilization {
-            parts.append(TokenFormatter.percent(utilization))
+        if showLimitInMenu {
+            if let utilization = limits?.fiveHour?.utilization {
+                parts.append("Claude \(TokenFormatter.percent(utilization))")
+            }
+            if let usedPercent = codexLimits?.codex.primary?.usedPercent {
+                parts.append("Codex \(TokenFormatter.percent(Double(usedPercent)))")
+            }
         }
         return parts.joined(separator: " · ")   // 전부 끄면 아이콘만
     }
@@ -141,6 +152,12 @@ final class UsageStore {
     /// 메뉴바 경고 상태 — 임계 초과 또는 리셋 전 한도 도달 예측
     var isLimitWarning: Bool {
         if let utilization = limits?.fiveHour?.utilization, utilization >= critThreshold { return true }
+        if let utilization = codexLimits?.codex.primary?.usedPercent,
+           Double(utilization) >= critThreshold { return true }
+        if let utilization = codexLimits?.codex.secondary?.usedPercent,
+           Double(utilization) >= critThreshold { return true }
+        if let utilization = codexLimits?.codex.individualLimit?.usedPercent,
+           Double(utilization) >= critThreshold { return true }
         if let forecast = fiveHourForecast, forecast.beforeReset { return true }
         return false
     }
@@ -313,7 +330,7 @@ final class UsageStore {
         if disableKeychainAccess {
             limits = nil
             limitsAvailable = false
-            AppLog.write("limits skipped: keychain access disabled")
+            AppLog.write("claude limits skipped: keychain access disabled")
         } else {
             do {
                 limits = try await limitsProvider.fetch(allowKeychainPrompt: false)
@@ -325,6 +342,7 @@ final class UsageStore {
                 AppLog.write("limits unavailable: \(error)")
             }
         }
+        await refreshCodexLimits()
 
         checkLimitNotifications()
         writeParitySnapshot()
@@ -351,6 +369,19 @@ final class UsageStore {
         }
     }
 
+    private func refreshCodexLimits() async {
+        do {
+            codexLimits = try await codexLimitsProvider.fetch()
+            if let codex = codexLimits?.codex {
+                AppLog.write("codex limits refreshed primary=\(codex.primary?.usedPercent.description ?? "nil") secondary=\(codex.secondary?.usedPercent.description ?? "nil") plan=\(codex.planType ?? "nil")")
+            } else {
+                AppLog.write("codex limits skipped: codex binary not found")
+            }
+        } catch {
+            AppLog.write("codex limits unavailable: \(error)")
+        }
+    }
+
     // MARK: 한도 알림 (ClaudeBar 임계값 패턴)
 
     private func requestNotificationAuthorization() {
@@ -360,14 +391,42 @@ final class UsageStore {
 
     private func checkLimitNotifications() {
         guard Bundle.main.bundleIdentifier != nil, Bundle.main.bundlePath.hasSuffix(".app") else { return }
-        guard let limits else { return }
-        let windows: [(name: String, window: LimitWindow?)] = [
-            ("5시간 세션", limits.fiveHour),
-            ("주간", limits.sevenDay),
-        ]
-        for (name, window) in windows {
-            guard let window, let utilization = window.utilization else { continue }
-            let resetKey = window.resetsAt ?? "none"
+        var windows: [(name: String, utilization: Double, resetKey: String)] = []
+        if let limits {
+            if let utilization = limits.fiveHour?.utilization {
+                windows.append((
+                    "Claude 5시간 세션",
+                    utilization,
+                    limits.fiveHour?.resetsAt ?? "none"))
+            }
+            if let utilization = limits.sevenDay?.utilization {
+                windows.append((
+                    "Claude 주간",
+                    utilization,
+                    limits.sevenDay?.resetsAt ?? "none"))
+            }
+        }
+        if let codex = codexLimits?.codex {
+            if let primary = codex.primary {
+                windows.append((
+                    "Codex \(primary.displayName)",
+                    Double(primary.usedPercent),
+                    primary.resetsAt.map(String.init) ?? "none"))
+            }
+            if let secondary = codex.secondary {
+                windows.append((
+                    "Codex \(secondary.displayName)",
+                    Double(secondary.usedPercent),
+                    secondary.resetsAt.map(String.init) ?? "none"))
+            }
+            if let individual = codex.individualLimit {
+                windows.append((
+                    "Codex 개인 한도",
+                    Double(individual.usedPercent),
+                    String(individual.resetsAt)))
+            }
+        }
+        for (name, utilization, resetKey) in windows {
             for (level, threshold) in [("critical", critThreshold), ("warning", warnThreshold)] {
                 guard utilization >= threshold else { continue }
                 let key = "\(name)-\(resetKey)-\(level)"

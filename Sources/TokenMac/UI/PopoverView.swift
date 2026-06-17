@@ -22,7 +22,7 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             Divider()
-            if store.limitsAvailable, store.limits != nil {
+            if store.hasAnyLimits {
                 limitsSection
                 Divider()
             }
@@ -132,28 +132,43 @@ struct PopoverView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if let limits = store.limits {
+                limitProviderTitle("Claude Code")
                 limitRow(name: "5시간 세션", window: limits.fiveHour)
                 forecastRow
                 limitRow(name: "주간", window: limits.sevenDay)
                 limitRow(name: "주간 Opus", window: limits.sevenDayOpus)
                 limitRow(name: "주간 Sonnet", window: limits.sevenDaySonnet)
-            }
-            if let block = store.snapshots.first(where: { $0.activeBlock != nil })?.activeBlock,
-               let end = block.endDate {
-                HStack {
-                    Text("현재 5h 블록")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(TokenFormatter.compact(block.totalTokens))
-                        .font(.caption)
-                        .monospacedDigit()
-                    Spacer()
-                    Text("리셋 \(end, style: .relative) 후")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                if let block = store.snapshots.first(where: { $0.activeBlock != nil })?.activeBlock,
+                   let end = block.endDate {
+                    HStack {
+                        Text("Claude 현재 5h 블록")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(TokenFormatter.compact(block.totalTokens))
+                            .font(.caption)
+                            .monospacedDigit()
+                        Spacer()
+                        Text("리셋 \(end, style: .relative) 후")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
+            if let codex = store.codexLimits?.codex, codex.hasVisibleLimit {
+                limitProviderTitle("Codex")
+                codexMetaRow(codex)
+                codexLimitRow(name: codex.primary?.displayName ?? "5시간 세션", window: codex.primary)
+                codexLimitRow(name: codex.secondary?.displayName ?? "주간", window: codex.secondary)
+                codexSpendLimitRow(codex.individualLimit)
+            }
         }
+    }
+
+    private func limitProviderTitle(_ name: String) -> some View {
+        Text(name)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 2)
     }
 
     @ViewBuilder
@@ -173,6 +188,78 @@ struct PopoverView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
+                }
+                ProgressView(value: min(utilization, 100), total: 100)
+                    .tint(limitColor(utilization))
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func codexMetaRow(_ snapshot: CodexRateLimitSnapshot) -> some View {
+        if snapshot.planType != nil || snapshot.rateLimitReachedType != nil {
+            HStack(spacing: 8) {
+                if let plan = snapshot.planType {
+                    Text("플랜 \(plan)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                if snapshot.rateLimitReachedType != nil {
+                    Text("한도 도달")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func codexLimitRow(name: String, window: CodexRateLimitWindow?) -> some View {
+        if let window {
+            let utilization = Double(window.usedPercent)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(name)
+                        .font(.callout)
+                    Spacer()
+                    Text(TokenFormatter.percent(utilization))
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(limitColor(utilization))
+                    if let reset = window.resetDate {
+                        Text("· \(reset, style: .relative)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                ProgressView(value: min(utilization, 100), total: 100)
+                    .tint(limitColor(utilization))
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func codexSpendLimitRow(_ limit: CodexSpendControlLimit?) -> some View {
+        if let limit {
+            let utilization = Double(limit.usedPercent)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("개인 사용 한도")
+                        .font(.callout)
+                    Spacer()
+                    Text("\(limit.used) / \(limit.limit)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Text(TokenFormatter.percent(utilization))
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(limitColor(utilization))
+                    Text("· \(limit.resetDate, style: .relative)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
                 ProgressView(value: min(utilization, 100), total: 100)
                     .tint(limitColor(utilization))

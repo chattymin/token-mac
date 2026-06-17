@@ -194,6 +194,71 @@ struct LimitStatus: Decodable, Sendable {
     }
 }
 
+// MARK: - Codex app-server rate limits
+
+struct CodexRateLimitWindow: Decodable, Sendable {
+    var usedPercent: Int
+    var windowDurationMins: Int?
+    var resetsAt: Int?
+
+    var resetDate: Date? {
+        guard let resetsAt else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(resetsAt))
+    }
+
+    var displayName: String {
+        switch windowDurationMins {
+        case 300: return "5시간 세션"
+        case 10_080: return "주간"
+        case let mins? where mins >= 60 && mins % 60 == 0: return "\(mins / 60)시간"
+        case let mins?: return "\(mins)분"
+        case nil: return "한도"
+        }
+    }
+}
+
+struct CodexCreditsSnapshot: Decodable, Sendable {
+    var balance: String?
+    var hasCredits: Bool
+    var unlimited: Bool
+}
+
+struct CodexSpendControlLimit: Decodable, Sendable {
+    var limit: String
+    var remainingPercent: Int
+    var resetsAt: Int
+    var used: String
+
+    var usedPercent: Int { max(0, min(100, 100 - remainingPercent)) }
+    var resetDate: Date { Date(timeIntervalSince1970: TimeInterval(resetsAt)) }
+}
+
+struct CodexRateLimitSnapshot: Decodable, Sendable {
+    var limitId: String?
+    var limitName: String?
+    var primary: CodexRateLimitWindow?
+    var secondary: CodexRateLimitWindow?
+    var credits: CodexCreditsSnapshot?
+    var individualLimit: CodexSpendControlLimit?
+    var planType: String?
+    var rateLimitReachedType: String?
+
+    var hasVisibleLimit: Bool {
+        primary != nil || secondary != nil || individualLimit != nil
+    }
+}
+
+struct CodexRateLimitStatus: Decodable, Sendable {
+    var rateLimits: CodexRateLimitSnapshot
+    var rateLimitsByLimitId: [String: CodexRateLimitSnapshot]?
+
+    var codex: CodexRateLimitSnapshot {
+        rateLimitsByLimitId?["codex"] ?? rateLimits
+    }
+
+    var hasVisibleLimit: Bool { codex.hasVisibleLimit }
+}
+
 // MARK: - Provider snapshot
 
 struct ProviderSnapshot: Sendable, Identifiable {
