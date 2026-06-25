@@ -17,6 +17,14 @@ struct SpriteView: View {
     @State private var img: NSImage?
     @State private var up = false
 
+    init(speciesID: Int?, size: CGFloat = 84, bob: Bool = false) {
+        self.speciesID = speciesID
+        self.size = size
+        self.bob = bob
+        // 캐시에 있으면 즉시(동기) 표시 — 재렌더 플래시 방지 + 정적 스냅샷에서도 보임
+        _img = State(initialValue: speciesID.flatMap { SpriteLoader.cachedImage(speciesID: $0) })
+    }
+
     var body: some View {
         Group {
             if let img {

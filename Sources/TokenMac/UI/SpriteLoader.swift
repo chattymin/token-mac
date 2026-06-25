@@ -32,6 +32,19 @@ actor SpriteStore {
 
 @MainActor
 enum SpriteLoader {
+    static let cacheDir: URL = {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("TokenMac/sprites")
+    }()
+
+    /// 디스크 캐시에 이미 있으면 동기 반환(네트워크 없음). 없으면 nil.
+    static func cachedImage(speciesID: Int, animated: Bool = false) -> NSImage? {
+        let ext = animated ? "gif" : "png"
+        let f = cacheDir.appendingPathComponent("\(speciesID)-\(animated ? "a" : "s").\(ext)")
+        guard let d = try? Data(contentsOf: f) else { return nil }
+        return NSImage(data: d)
+    }
+
     /// 정적 스프라이트. animated=true 면 Gen-V 움직이는 스프라이트(없으면 정적으로 폴백).
     static func image(speciesID: Int, animated: Bool = false) async -> NSImage? {
         if animated, let d = await SpriteStore.shared.data(speciesID: speciesID, animated: true), let img = NSImage(data: d) {
