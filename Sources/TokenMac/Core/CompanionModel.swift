@@ -1,122 +1,138 @@
 import Foundation
 
-/// 캐릭터의 현재 표시 상태 — UsageStore 신호(burn tier/한도)로 결정
+/// 표시 상태 — 사용량/burn 으로 결정(스프라이트 모션 강도·상태 문구).
 enum CompanionStateKind: String, Sendable {
     case egg, idle, working, focus, tired, sleep, levelUp
 }
 
-/// 고양이 변종 마킹 (Phase 2: 고양이 3종). 강아지/오브젝트는 후속 PR.
-enum CatMarking: String, Codable, Sendable {
-    case tabby       // 크림 태비 (Mochi)
-    case grayTabby   // 그레이 태비 (Smoke, Pusheen 풍)
-    case points      // 샴 — 다크 포인트 + 블루 눈 (Coco)
-}
-
-/// 카탈로그의 캐릭터 정의(트레이트). 인스턴스(실제 키우는 개체)와 분리.
-struct CompanionTraits: Sendable, Identifiable {
-    let id: String
-    let displayName: String
-    let marking: CatMarking
-    /// 희소도 — 낮을수록 흔함(먼저 부화). Phase 3 등급 가중의 씨앗.
-    let rarity: Int
-}
-
-enum CompanionCatalog {
-    static let all: [CompanionTraits] = [
-        CompanionTraits(id: "mochi", displayName: "Mochi", marking: .tabby, rarity: 0),
-        CompanionTraits(id: "smoke", displayName: "Smoke", marking: .grayTabby, rarity: 1),
-        CompanionTraits(id: "coco",  displayName: "Coco",  marking: .points, rarity: 1),
-    ]
-    static func traits(for id: String) -> CompanionTraits {
-        all.first { $0.id == id } ?? all[0]
+/// 앱 언어. 포켓몬 이름은 PokéAPI 다국어 names 에서 가져온다.
+enum AppLanguage: String, Codable, Sendable, CaseIterable {
+    case ko, en, ja
+    /// PokéAPI language.name 후보(첫 매칭 사용)
+    var apiCodes: [String] {
+        switch self {
+        case .ko: return ["ko"]
+        case .en: return ["en"]
+        case .ja: return ["ja-Hrkt", "ja"]
+        }
     }
-    /// 수집 단계: 미보유 중에서 희소도 낮은 군을 우선, 그 안에서 랜덤. 중복 없음.
-    static func nextUnowned(ownedIDs: Set<String>, using rng: inout any RandomNumberGenerator) -> CompanionTraits? {
-        let pool = all.filter { !ownedIDs.contains($0.id) }
-        guard let minRarity = pool.map(\.rarity).min() else { return nil }
-        let tier = pool.filter { $0.rarity == minRarity }
-        return tier[Int(rng.next() % UInt64(tier.count))]
+    var label: String {
+        switch self { case .ko: return "한국어"; case .en: return "English"; case .ja: return "日本語" }
     }
 }
 
-/// XP/레벨 밸런스 — 한 곳의 테이블로.
-enum CompanionBalance {
-    static let tokenXPDivisor = 1_000.0
-    static let xpMultiplier = 4.0
-    static let maxLevel = 50
-
-    static func xp(forTokens tokens: Int) -> Int {
-        guard tokens > 0 else { return 0 }
-        return Int((sqrt(Double(tokens) / tokenXPDivisor) * xpMultiplier).rounded(.down))
-    }
-    static func cumulativeXP(toReach level: Int) -> Int {
-        let l = max(1, level)
-        if l <= 1 { return 0 }
-        return Int((20.0 * pow(Double(l - 1), 1.85)).rounded())
-    }
-    static func level(forXP xp: Int) -> Int {
-        var lvl = 1
-        while lvl < maxLevel && cumulativeXP(toReach: lvl + 1) <= xp { lvl += 1 }
-        return lvl
+/// 희귀도 — PokéAPI capture_rate / is_legendary 로 판정.
+enum Rarity: String, Codable, Sendable {
+    case common, uncommon, rare, legendary
+    static func from(captureRate: Int, isLegendary: Bool, isMythical: Bool) -> Rarity {
+        if isLegendary || isMythical { return .legendary }
+        if captureRate <= 45 { return .rare }
+        if captureRate <= 120 { return .uncommon }
+        return .common
     }
 }
 
-/// 컬렉션에 보존되는 졸업(maxed) 개체. 도감 표시용.
-struct CompanionInstance: Codable, Sendable, Identifiable {
+/// 토큰 경제 — 실측 평균(~253M/일) 기준.
+/// 졸업 총량 T 는 같은 희귀도면 진화 단계 수와 무관하게 동일.
+/// 형태 k개 라인에서 i번째 형태 성장 비용 = T·i / (k(k+1)/2) → 합 = T, 단계↑일수록 비용↑.
+enum PokemonBalance {
+    static func graduationTotal(_ rarity: Rarity) -> Int {
+        switch rarity {
+        case .common:    return    750_000_000
+        case .uncommon:  return  1_875_000_000
+        case .rare:      return  3_000_000_000
+        case .legendary: return  6_000_000_000
+        }
+    }
+    /// stageIndex(0-based)에서 다음 단계/졸업까지 필요한 토큰.
+    static func phaseThreshold(rarity: Rarity, totalForms k: Int, stageIndex: Int) -> Int {
+        let kk = max(1, k)
+        let i = stageIndex + 1                         // 1-based
+        let total = Double(graduationTotal(rarity))
+        let denom = Double(kk * (kk + 1)) / 2.0
+        return Int((total * Double(i) / denom).rounded())
+    }
+}
+
+/// PokéAPI evolution-chain 을 파싱한 트리. 분기(evolves_to 다수)를 children 으로.
+struct EvoNode: Codable, Sendable {
+    let speciesID: Int
+    let children: [EvoNode]
+
+    /// 최장 경로 길이(형태 수). 분기는 보통 같은 깊이라 대표값으로 사용.
+    var depth: Int { 1 + (children.map(\.depth).max() ?? 0) }
+    /// 첫 분기를 따라간 선형 경로의 종 id (목업/표시용)
+    var linearIDs: [Int] {
+        var ids = [speciesID]; var n = self
+        while let c = n.children.first { ids.append(c.speciesID); n = c }
+        return ids
+    }
+    func node(withID id: Int) -> EvoNode? {
+        if speciesID == id { return self }
+        for c in children { if let f = c.node(withID: id) { return f } }
+        return nil
+    }
+    /// 이 노드에서 도달 가능한 모든 최종체 id
+    var finalIDs: [Int] {
+        children.isEmpty ? [speciesID] : children.flatMap(\.finalIDs)
+    }
+}
+
+/// 부화 시 확정되는 라인 정보(트리 + 희귀도 + 다국어 이름).
+struct EvoLine: Sendable {
+    let baseID: Int
+    let tree: EvoNode
+    let rarity: Rarity
+    /// speciesID → (langCode → name)
+    let names: [Int: [String: String]]
+    var totalForms: Int { tree.depth }
+    func localizedName(_ id: Int, _ lang: AppLanguage) -> String {
+        guard let byLang = names[id] else { return "#\(id)" }
+        for code in lang.apiCodes { if let n = byLang[code] { return n } }
+        return byLang["en"] ?? "#\(id)"
+    }
+}
+
+/// 현재 키우는 포켓몬.
+struct MonState: Codable, Sendable {
+    var baseID: Int
+    var pathIDs: [Int]      // 실제 진화 경로(분기 선택 반영)
+    var stageIndex: Int     // pathIDs 내 현재 위치
+    var usedAtStage: Int    // 현재 형태에서 누적 사용량
+    var rarity: Rarity
+    var totalForms: Int
+    var currentID: Int { pathIDs[min(stageIndex, pathIDs.count - 1)] }
+}
+
+/// 도감 항목 — 라인 전체(초기→최종) 순서 보존.
+struct DexEntry: Codable, Sendable, Identifiable {
     var id = UUID().uuidString
-    var companionID: String
-    var finalXP: Int
-    var maxed: Bool = true
-    var hatchedAt: Date?
-    var maxedAt: Date?
-    var level: Int { CompanionBalance.level(forXP: finalXP) }
+    var baseID: Int
+    var finalID: Int
+    var chainOrder: [Int]   // 초기→최종 종 id
+    var rarity: Rarity
+    var caughtAt: Date?
 }
 
-/// 영속 상태. Phase 1(단일 totalXP) → Phase 2(active + collection) 마이그레이션 안전.
+/// 영속 상태(Application Support JSON). 포켓몬 전환 — 이전 커스텀 캐릭터 상태는 폐기(새로 시작).
 struct CompanionState: Codable, Sendable {
-    // 토큰 적립 부기 (졸업과 무관하게 지속)
-    var claimedTodayXP = 0
-    var didApplyInitialBackfill = false
+    // 토큰: 설치 이후만 측정
+    var installBaselineSet = false
+    var usedSinceInstall = 0
+    var claimedTodayTokens = 0
     var lastDate = ""
-    var streakDays = 0
-    var hatched = false
-    // 현재 키우는 개체
-    var activeCompanionID = "mochi"
-    var activeXP = 0
-    // 졸업 보관함(도감)
-    var collection: [CompanionInstance] = []
+    // 현재 포켓몬(없으면 알)
+    var active: MonState?
+    // 도감
+    var dex: [DexEntry] = []
+    // 소유한 (base,final) 쌍 — 분기 다양성용
+    var collectedFinals: Set<String> = []
+    var language: AppLanguage = .ko
 
     init() {}
+}
 
-    init(from decoder: any Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        claimedTodayXP = try c.decodeIfPresent(Int.self, forKey: .claimedTodayXP) ?? 0
-        didApplyInitialBackfill = try c.decodeIfPresent(Bool.self, forKey: .didApplyInitialBackfill) ?? false
-        lastDate = try c.decodeIfPresent(String.self, forKey: .lastDate) ?? ""
-        streakDays = try c.decodeIfPresent(Int.self, forKey: .streakDays) ?? 0
-        hatched = try c.decodeIfPresent(Bool.self, forKey: .hatched) ?? false
-        activeCompanionID = try c.decodeIfPresent(String.self, forKey: .activeCompanionID) ?? "mochi"
-        // Phase 1 마이그레이션: 옛 totalXP → activeXP
-        activeXP = try c.decodeIfPresent(Int.self, forKey: .activeXP)
-            ?? c.decodeIfPresent(Int.self, forKey: .totalXP) ?? 0
-        collection = try c.decodeIfPresent([CompanionInstance].self, forKey: .collection) ?? []
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(claimedTodayXP, forKey: .claimedTodayXP)
-        try c.encode(didApplyInitialBackfill, forKey: .didApplyInitialBackfill)
-        try c.encode(lastDate, forKey: .lastDate)
-        try c.encode(streakDays, forKey: .streakDays)
-        try c.encode(hatched, forKey: .hatched)
-        try c.encode(activeCompanionID, forKey: .activeCompanionID)
-        try c.encode(activeXP, forKey: .activeXP)
-        try c.encode(collection, forKey: .collection)
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case claimedTodayXP, didApplyInitialBackfill, lastDate, streakDays, hatched
-        case activeCompanionID, activeXP, collection
-        case totalXP   // legacy(Phase 1) — decode 전용
-    }
+/// 부화 후보 base 종 id (숫자 = PokéAPI 식별자). 3단/2단/무진화/분기 골고루.
+enum PokemonPool {
+    static let baseIDs = [1, 4, 7, 10, 16, 172, 133, 129, 66, 92, 280, 128, 131, 446, 304, 252]
 }

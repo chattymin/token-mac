@@ -1,120 +1,163 @@
 import SwiftUI
 
-/// 팝오버용 active 캐릭터 애니메이션 — 상태별 코드 드로잉 NSImage 를 ~12fps 로 갱신.
-struct CompanionView: View {
-    let store: CompanionStore
-    var size: CGFloat = 88
+func rarityColor(_ r: Rarity?) -> Color {
+    switch r {
+    case .uncommon: return .green
+    case .rare: return .blue
+    case .legendary: return .orange
+    default: return .gray
+    }
+}
+
+/// 스프라이트 1개(런타임 로드 + 캐시). 없으면 알 글리프. bob 으로 가벼운 상하 움직임.
+struct SpriteView: View {
+    let speciesID: Int?
+    var size: CGFloat = 84
+    var bob: Bool = false
+    @State private var img: NSImage?
+    @State private var up = false
+
+    init(speciesID: Int?, size: CGFloat = 84, bob: Bool = false) {
+        self.speciesID = speciesID
+        self.size = size
+        self.bob = bob
+        // 캐시에 있으면 즉시(동기) 표시 — 재렌더 플래시 방지 + 정적 스냅샷에서도 보임
+        _img = State(initialValue: speciesID.flatMap { SpriteLoader.cachedImage(speciesID: $0) })
+    }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 12.0)) { context in
-            Image(nsImage: CompanionRenderer.image(
-                size: size, traits: store.activeTraits, state: store.displayState,
-                level: store.level, time: context.date.timeIntervalSinceReferenceDate))
-            .frame(width: size, height: size)
+        Group {
+            if let img {
+                Image(nsImage: img).resizable().interpolation(.none)
+                    .frame(width: size, height: size)
+            } else {
+                Text("🥚").font(.system(size: size * 0.62)).frame(width: size, height: size)
+            }
         }
-        .frame(width: size, height: size)
+        .offset(y: bob && up ? -3 : 0)
+        .task(id: speciesID) {
+            guard let id = speciesID else { img = nil; return }
+            img = await SpriteLoader.image(speciesID: id, animated: false)
+        }
+        .onAppear {
+            guard bob else { return }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { up = true }
+        }
     }
 }
 
-/// 컬렉션 도감용 정적 썸네일(idle 포즈, 애니메이션 없음).
-struct CompanionThumbnail: View {
-    let traits: CompanionTraits
-    var level: Int = 1
-    var size: CGFloat = 52
+/// 진화 라인(초기→최종, 다음 후보 미리보기). done/cur/future.
+struct EvoLineView: View {
+    let nodes: [(id: Int, kind: String)]
+    var thumb: CGFloat = 40
     var body: some View {
-        Image(nsImage: CompanionRenderer.image(
-            size: size, traits: traits, state: .idle, level: level, time: 0.4))
-        .frame(width: size, height: size)
+        HStack(spacing: 2) {
+            ForEach(Array(nodes.enumerated()), id: \.offset) { i, node in
+                if i > 0 { Image(systemName: "arrow.right").font(.system(size: 8)).foregroundStyle(.tertiary) }
+                SpriteView(speciesID: node.id, size: thumb)
+                    .opacity(node.kind == "future" ? 0.32 : 1)
+                    .saturation(node.kind == "future" ? 0.4 : 1)
+                    .overlay(alignment: .bottom) {
+                        if node.kind == "cur" {
+                            Circle().fill(Color.accentColor).frame(width: 4, height: 4).offset(y: 2)
+                        }
+                    }
+            }
+        }
     }
 }
 
-/// 팝오버 상단 캐릭터 섹션 — 스프라이트 + 이름/레벨 + XP 바 + 오늘 XP + 다음 레벨까지.
+/// 팝오버 상단 — 현재 포켓몬 + 진화 진행.
 struct CompanionHeader: View {
     let store: CompanionStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 12) {
-                CompanionView(store: store, size: 72)
+                SpriteView(speciesID: store.currentSpeciesID, size: 76, bob: true)
+                    .frame(width: 76, height: 76)
+                    .background(Color.secondary.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
-                        Text(store.name).font(.callout.weight(.semibold))
-                        Text(store.isMaxed ? "Lv. \(store.level) · MAX" : "Lv. \(store.level)")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    ProgressView(value: store.levelProgress).controlSize(.small).tint(.orange)
-                    HStack(spacing: 8) {
-                        if store.todayXP > 0 {
-                            Text("오늘 +\(store.todayXP) XP").font(.caption2).foregroundStyle(.secondary)
+                        Text(store.displayName).font(.callout.weight(.semibold))
+                        if let r = store.rarity {
+                            Text(r.rawValue.uppercased()).font(.system(size: 8, weight: .bold))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(rarityColor(r)).foregroundStyle(.white)
+                                .clipShape(Capsule())
                         }
-                        if !store.isMaxed, store.tokensToNextLevel > 0 {
-                            Text("다음 레벨까지 \(TokenFormatter.compact(store.tokensToNextLevel))")
+                    }
+                    if store.hasActive {
+                        Text(store.stageText).font(.caption2).foregroundStyle(.secondary)
+                        ProgressView(value: store.progress).controlSize(.small).tint(.orange)
+                        if store.tokensToNext > 0 {
+                            let amount = TokenFormatter.compact(store.tokensToNext)
+                            Text(store.isFinalStage ? store.l.toGraduation(amount) : store.l.toNextEvolution(amount))
                                 .font(.caption2).foregroundStyle(.tertiary)
                         }
+                    } else {
+                        Text(store.l.waitingFirstToken).font(.caption2).foregroundStyle(.secondary)
                     }
                     Text(statusLine).font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
             }
-            if let graduated = store.justGraduated {
-                Text("\(graduated)가 졸업했어요. 새 Token Egg가 도착했어요!")
+            if store.hasActive, !store.lineNodes.isEmpty {
+                EvoLineView(nodes: store.lineNodes)
+            }
+            if let g = store.justGraduated {
+                Text(store.l.graduated(g))
                     .font(.caption2).foregroundStyle(.orange)
             }
         }
     }
 
     private var statusLine: String {
+        let l = store.l
         switch store.displayState {
-        case .egg:     return "곧 깨어나요."
-        case .idle:    return "오늘은 조용히 자리를 지켜요."
-        case .working: return "오늘의 작업 흔적이 쌓이고 있어요."
-        case .focus:   return "지금은 집중 모드예요."
-        case .tired:   return "한도에 가까워요. 잠깐 쉬어도 괜찮아요."
-        case .sleep:   return "지금은 자고 있어요."
-        case .levelUp: return "\(store.name)가 한 단계 자랐어요!"
+        case .egg:     return l.statusEgg
+        case .idle:    return l.statusIdle
+        case .working: return l.statusWorking
+        case .focus:   return l.statusFocus
+        case .tired:   return l.statusTired
+        case .sleep:   return l.statusSleep
+        case .levelUp: return store.justEvolvedTo.map { l.statusEvolved($0) } ?? l.statusGrew
         }
     }
 }
 
-/// Collection 탭 — 졸업 보관함 도감 + 현재 키우는 캐릭터.
+/// 도감 — 잡은 라인(초기→최종 전부) 목록.
 struct CollectionView: View {
     let store: CompanionStore
-    private let cols = [GridItem(.adaptive(minimum: 84), spacing: 10)]
-
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: cols, spacing: 10) {
-                // 현재 active
-                cell(traits: store.activeTraits, level: store.level, maxed: store.isMaxed, active: true)
-                // 졸업 보관함
-                ForEach(store.collectionInstances) { inst in
-                    cell(traits: CompanionCatalog.traits(for: inst.companionID),
-                         level: inst.level, maxed: inst.maxed, active: false)
+            if store.dexEntries.isEmpty {
+                Text(store.l.dexEmpty)
+                    .font(.caption).foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(store.dexEntries) { entry in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(entry.rarity.rawValue.uppercased())
+                                    .font(.system(size: 8, weight: .bold))
+                                    .padding(.horizontal, 5).padding(.vertical, 1)
+                                    .background(rarityColor(entry.rarity)).foregroundStyle(.white)
+                                    .clipShape(Capsule())
+                                Spacer()
+                                Text(store.l.formsComplete(entry.chainOrder.count)).font(.system(size: 9)).foregroundStyle(.secondary)
+                            }
+                            EvoLineView(nodes: entry.chainOrder.map { ($0, "done") }, thumb: 38)
+                        }
+                        .padding(8)
+                        .background(Color.secondary.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
             }
-            .padding(.vertical, 4)
-            Text("토큰을 먹고 자라요. max 달성 캐릭터는 여기 보존돼요.")
-                .font(.caption2).foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxHeight: 240)
-    }
-
-    private func cell(traits: CompanionTraits, level: Int, maxed: Bool, active: Bool) -> some View {
-        VStack(spacing: 2) {
-            ZStack(alignment: .topTrailing) {
-                CompanionThumbnail(traits: traits, level: level, size: 52)
-                if maxed {
-                    Image(systemName: "crown.fill").font(.system(size: 9))
-                        .foregroundStyle(.yellow).padding(2)
-                }
-            }
-            Text(traits.displayName).font(.caption2)
-            Text(active ? "Lv. \(level)" : "Lv. \(level) · MAX")
-                .font(.system(size: 9)).foregroundStyle(.secondary)
-        }
-        .padding(6)
-        .background(active ? Color.orange.opacity(0.10) : Color.secondary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(maxHeight: 260)
     }
 }

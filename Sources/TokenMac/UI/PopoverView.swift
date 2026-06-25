@@ -8,6 +8,8 @@ struct PopoverView: View {
     @State private var showSettings = false
     @State private var tab: PopoverTab = .home
 
+    private var l: L { companion.l }
+
     var body: some View {
         // NOTE: 설정을 .sheet 로 띄우면 transient 팝오버가 닫힐 때 시트가 고아로 남아
         // 이후 팝오버의 모든 버튼 클릭을 차단할 수 있음 — 팝오버 내부 화면 전환으로 처리
@@ -15,6 +17,7 @@ struct PopoverView: View {
             if showSettings {
                 SettingsView(onClose: { showSettings = false })
                     .environment(store)
+                    .environment(companion)
             } else {
                 mainContent
             }
@@ -25,8 +28,8 @@ struct PopoverView: View {
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             Picker("", selection: $tab) {
-                Text("홈").tag(PopoverTab.home)
-                Text("컬렉션").tag(PopoverTab.collection)
+                Text(l.home).tag(PopoverTab.home)
+                Text(l.collection).tag(PopoverTab.collection)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -52,7 +55,7 @@ struct PopoverView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("오늘 사용한 토큰")
+            Text(l.todayTokens)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline) {
@@ -78,8 +81,8 @@ struct PopoverView: View {
             // 주간/월간 누적
             if store.weekTotalTokens > 0 || store.monthTotalTokens > 0 {
                 HStack(spacing: 14) {
-                    periodLabel("이번 주", tokens: store.weekTotalTokens, cost: store.weekCostTotal)
-                    periodLabel("이번 달", tokens: store.monthTotalTokens, cost: store.monthCostTotal)
+                    periodLabel(l.thisWeek, tokens: store.weekTotalTokens, cost: store.weekCostTotal)
+                    periodLabel(l.thisMonth, tokens: store.monthTotalTokens, cost: store.monthCostTotal)
                     Spacer()
                 }
                 .padding(.top, 4)
@@ -145,27 +148,27 @@ struct PopoverView: View {
     @ViewBuilder
     private var limitsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("한도 (공식)")
+            Text(l.limitsOfficial)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if let limits = store.limits {
                 limitProviderTitle("Claude Code")
-                limitRow(name: "5시간 세션", window: limits.fiveHour)
+                limitRow(name: l.fiveHourSession, window: limits.fiveHour)
                 forecastRow
-                limitRow(name: "주간", window: limits.sevenDay)
-                limitRow(name: "주간 Opus", window: limits.sevenDayOpus)
-                limitRow(name: "주간 Sonnet", window: limits.sevenDaySonnet)
+                limitRow(name: l.weekly, window: limits.sevenDay)
+                limitRow(name: l.weeklyOpus, window: limits.sevenDayOpus)
+                limitRow(name: l.weeklySonnet, window: limits.sevenDaySonnet)
                 if let block = store.snapshots.first(where: { $0.activeBlock != nil })?.activeBlock,
                    let end = block.endDate {
                     HStack {
-                        Text("Claude 현재 5h 블록")
+                        Text(l.claudeCurrentBlock)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(TokenFormatter.compact(block.totalTokens))
                             .font(.caption)
                             .monospacedDigit()
                         Spacer()
-                        Text("리셋 \(end, style: .relative) 후")
+                        (Text("\(l.reset) ") + Text(end, style: .relative))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
@@ -174,8 +177,8 @@ struct PopoverView: View {
             if let codex = store.codexLimits?.codex, codex.hasVisibleLimit {
                 limitProviderTitle("Codex")
                 codexMetaRow(codex)
-                codexLimitRow(name: codex.primary?.displayName ?? "5시간 세션", window: codex.primary)
-                codexLimitRow(name: codex.secondary?.displayName ?? "주간", window: codex.secondary)
+                codexLimitRow(name: l.codexWindow(codex.primary?.windowDurationMins), window: codex.primary)
+                codexLimitRow(name: l.codexWindow(codex.secondary?.windowDurationMins), window: codex.secondary)
                 codexSpendLimitRow(codex.individualLimit)
             }
         }
@@ -218,12 +221,12 @@ struct PopoverView: View {
         if snapshot.planType != nil || snapshot.rateLimitReachedType != nil {
             HStack(spacing: 8) {
                 if let plan = snapshot.planType {
-                    Text("플랜 \(plan)")
+                    Text(l.plan(plan))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
                 if snapshot.rateLimitReachedType != nil {
-                    Text("한도 도달")
+                    Text(l.limitReached)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -263,7 +266,7 @@ struct PopoverView: View {
             let utilization = Double(limit.usedPercent)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text("개인 사용 한도")
+                    Text(l.personalSpendLimit)
                         .font(.callout)
                     Spacer()
                     Text("\(limit.used) / \(limit.limit)")
@@ -294,8 +297,8 @@ struct PopoverView: View {
                     ? "exclamationmark.triangle.fill" : "checkmark.circle")
                     .font(.caption2)
                 Text(forecast.beforeReset
-                    ? "현재 속도면 \(Self.timeFormatter.string(from: forecast.depletionDate)) 한도 도달"
-                    : "현재 속도로는 리셋 전 한도 도달 없음")
+                    ? l.forecastReach(Self.timeFormatter.string(from: forecast.depletionDate))
+                    : l.forecastNoReach)
                     .font(.caption)
             }
             .foregroundStyle(forecast.beforeReset ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
@@ -329,10 +332,10 @@ struct PopoverView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
-                .help("지금 새로고침")
+                .help(l.refreshNow)
             }
             if let updated = store.lastUpdated {
-                Text("갱신 \(updated, style: .relative) 전")
+                (Text("\(l.updated) ") + Text(updated, style: .relative))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -348,14 +351,14 @@ struct PopoverView: View {
                 Image(systemName: "gearshape")
             }
             .buttonStyle(.borderless)
-            .help("설정")
+            .help(l.settings)
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
                 Image(systemName: "power")
             }
             .buttonStyle(.borderless)
-            .help("종료")
+            .help(l.quit)
         }
     }
 }

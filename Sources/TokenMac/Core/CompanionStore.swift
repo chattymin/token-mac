@@ -1,53 +1,34 @@
 import Foundation
 import Observation
 
-/// 게임 상태의 출처. UsageStore(사용량 출처)의 값을 읽어 현재 active 캐릭터에 XP/레벨을 적립하고,
-/// max 도달 시 Collection 으로 졸업 + 미보유 캐릭터로 새 알 부화.
+/// 게임 상태의 출처. 설치 이후 토큰 사용량으로 포켓몬을 진화시키고, 최종체 + 추가 임계 도달 시
+/// 도감(라인 전체)에 보존 + 새 알. 진화 트리/희귀도/이름은 PokeProviding 으로 런타임 주입.
 @MainActor
 @Observable
 final class CompanionStore {
     private(set) var state = CompanionState()
-    private(set) var level = 1
-    private(set) var todayXP = 0
     private(set) var displayState: CompanionStateKind = .egg
-    private(set) var justLeveledUp = false
-    /// 직전 졸업한 캐릭터 이름(새 알 안내 문구용). nil 이면 졸업 없음.
+    private(set) var currentLine: EvoLine?
+    private(set) var isHatching = false
+    private(set) var justEvolvedTo: String?     // 이름(연출/문구)
     private(set) var justGraduated: String?
-    private var levelUpUntil: Date?
+    private var eventUntil: Date?
 
+    private let provider: any PokeProviding
     private let clock: () -> Date
     private let fileURL: URL
     private var rng: any RandomNumberGenerator
 
-    var activeTraits: CompanionTraits { CompanionCatalog.traits(for: state.activeCompanionID) }
-    var name: String { activeTraits.displayName }
-    var isMaxed: Bool { level >= CompanionBalance.maxLevel }
-    var collectionInstances: [CompanionInstance] { state.collection }
-
-    var xpIntoLevel: Int { state.activeXP - CompanionBalance.cumulativeXP(toReach: level) }
-    var xpForNextLevel: Int {
-        guard !isMaxed else { return max(1, xpIntoLevel) }
-        return CompanionBalance.cumulativeXP(toReach: level + 1) - CompanionBalance.cumulativeXP(toReach: level)
-    }
-    var levelProgress: Double {
-        guard xpForNextLevel > 0 else { return 1 }
-        return min(1, max(0, Double(xpIntoLevel) / Double(xpForNextLevel)))
-    }
-    var tokensToNextLevel: Int {
-        guard !isMaxed else { return 0 }
-        let needXP = max(0, CompanionBalance.cumulativeXP(toReach: level + 1) - state.activeXP)
-        let x = Double(needXP) / CompanionBalance.xpMultiplier
-        return Int((x * x * CompanionBalance.tokenXPDivisor).rounded())
-    }
-
-    init(clock: @escaping () -> Date = Date.init, fileURL: URL? = nil,
+    init(provider: any PokeProviding = PokeAPIClient.shared,
+         clock: @escaping () -> Date = Date.init,
+         fileURL: URL? = nil,
          rng: any RandomNumberGenerator = SystemRandomNumberGenerator()) {
+        self.provider = provider
         self.clock = clock
         self.fileURL = fileURL ?? Self.defaultURL()
         self.rng = rng
         load()
-        level = CompanionBalance.level(forXP: state.activeXP)
-        if state.hatched { displayState = .idle }
+        if state.active != nil { displayState = .idle }
     }
 
     static func defaultURL() -> URL {
@@ -57,75 +38,169 @@ final class CompanionStore {
         return dir.appendingPathComponent("companion-state.json")
     }
 
+    // MARK: 파생값 (UI)
+
+    var language: AppLanguage { state.language }
+    func setLanguage(_ lang: AppLanguage) { state.language = lang; save() }
+    /// 앱 전체 UI 문자열 — language 변경 시 자동 재렌더.
+    var l: L { L(language) }
+
+    var hasActive: Bool { state.active != nil }
+    var rarity: Rarity? { state.active?.rarity }
+
+    var displayName: String {
+        guard let a = state.active, let line = currentLine else { return "Token Egg" }
+        return line.localizedName(a.currentID, state.language)
+    }
+    var currentSpeciesID: Int? { state.active?.currentID }
+    var isFinalStage: Bool {
+        guard let a = state.active, let line = currentLine else { return false }
+        return line.tree.node(withID: a.currentID)?.children.isEmpty ?? true
+    }
+    var stageText: String {
+        guard let a = state.active else { return "" }
+        return isFinalStage ? l.finalForm : l.stage(a.stageIndex + 1, a.totalForms)
+    }
+    var threshold: Int {
+        guard let a = state.active else { return 1 }
+        return PokemonBalance.phaseThreshold(rarity: a.rarity, totalForms: a.totalForms, stageIndex: a.stageIndex)
+    }
+    var progress: Double {
+        guard let a = state.active, threshold > 0 else { return 0 }
+        return min(1, max(0, Double(a.usedAtStage) / Double(threshold)))
+    }
+    var tokensToNext: Int { guard let a = state.active else { return 0 }; return max(0, threshold - a.usedAtStage) }
+
+    /// 진화 라인 표시용: 현재까지 경로 + 다음 후보. (id, kind) kind: done/cur/future
+    var lineNodes: [(id: Int, kind: String)] {
+        guard let a = state.active, let line = currentLine else { return [] }
+        var out: [(Int, String)] = []
+        for (i, id) in a.pathIDs.enumerated() {
+            out.append((id, i < a.stageIndex ? "done" : (i == a.stageIndex ? "cur" : "future")))
+        }
+        if let cur = line.tree.node(withID: a.currentID) {
+            for ch in cur.children { out.append((ch.speciesID, "future")) }
+        }
+        return out
+    }
+    var dexEntries: [DexEntry] { state.dex }
+
+    // MARK: 갱신 (AppDelegate 가 UsageStore 값으로 호출)
+
     func update(todayTokens: Int, todayDate: String, monthTotal: Int,
-                burnTier: SpinTier, limitWarning: Bool, hasUsageData: Bool) {
-        justGraduated = nil   // 이번 update 에서 졸업했을 때만 설정
-        let prevLevel = level
-        let isBackfillNow = !state.didApplyInitialBackfill
-
-        if !state.didApplyInitialBackfill {
-            guard hasUsageData, monthTotal > 0 || todayTokens > 0 else {
-                displayState = .egg
-                return
-            }
-            state.activeXP = CompanionBalance.xp(forTokens: max(monthTotal, todayTokens))
-            state.claimedTodayXP = CompanionBalance.xp(forTokens: todayTokens)
+                burnTier: BurnTier, limitWarning: Bool, hasUsageData: Bool) {
+        justEvolvedTo = nil
+        if !state.installBaselineSet {
+            // 설치 기준선 — 실제 데이터가 도착한 시점의 today 를 baseline 으로(이전 사용량 미카운트).
+            // 데이터 도착 전(기동 직후 빈 새로고침)에는 잡지 않는다.
+            guard hasUsageData else { displayState = .egg; return }
+            state.installBaselineSet = true
+            state.claimedTodayTokens = todayTokens
             state.lastDate = todayDate
-            state.didApplyInitialBackfill = true
-            state.hatched = true
+            save()
         } else {
-            if todayDate != state.lastDate {
-                state.lastDate = todayDate
-                state.claimedTodayXP = 0
-                if todayTokens > 0 { state.streakDays += 1 }
-            }
-            let todayXPNow = CompanionBalance.xp(forTokens: todayTokens)
-            if todayXPNow > state.claimedTodayXP {
-                state.activeXP += todayXPNow - state.claimedTodayXP
-                state.claimedTodayXP = todayXPNow
-                state.hatched = true
+            if todayDate != state.lastDate { state.lastDate = todayDate; state.claimedTodayTokens = 0 }
+            if todayTokens > state.claimedTodayTokens {
+                let delta = todayTokens - state.claimedTodayTokens
+                state.claimedTodayTokens = todayTokens
+                state.usedSinceInstall += delta
+                applyUsage(delta)
             }
         }
-
-        level = CompanionBalance.level(forXP: state.activeXP)
-
-        // Max → 졸업 + 새 알 (소급 부화 시엔 졸업 보류, 다음 실제 갱신에서)
-        if level >= CompanionBalance.maxLevel && !isBackfillNow {
-            graduateIfPossible()
-        } else if level > prevLevel && !isBackfillNow {
-            justLeveledUp = true
-            levelUpUntil = clock().addingTimeInterval(4)
-        } else if let until = levelUpUntil, clock() > until {
-            justLeveledUp = false; levelUpUntil = nil
+        // 이벤트 만료
+        if let until = eventUntil, clock() > until { justGraduated = nil; eventUntil = nil }
+        // 알이면 부화(첫 사용량 후 / 졸업 후)
+        if state.active == nil, state.usedSinceInstall > 0, !isHatching {
+            Task { await hatchIfNeeded() }
         }
-
-        todayXP = CompanionBalance.xp(forTokens: todayTokens)
+        // active 인데 라인 미로딩(앱 재시작) → 로드
+        if state.active != nil, currentLine == nil, !isHatching {
+            Task { await loadCurrentLine() }
+        }
         displayState = computeState(burnTier: burnTier, limitWarning: limitWarning,
                                     hasUsageData: hasUsageData, today: todayTokens)
         save()
     }
 
-    /// active 가 max 도달: Collection 으로 보존하고 미보유 캐릭터로 새 알. 미보유 없으면 maxed 유지.
-    private func graduateIfPossible() {
-        let owned = Set(state.collection.map(\.companionID)).union([state.activeCompanionID])
-        guard let next = CompanionCatalog.nextUnowned(ownedIDs: owned, using: &rng) else {
-            return   // 모든 기본 캐릭터 보유 — maxed 유지(중복/등급은 Phase 3)
+    /// 토큰 증분을 현재 포켓몬에 적용 — 임계 도달 시 진화/졸업.
+    func applyUsage(_ delta: Int) {
+        guard state.active != nil, let line = currentLine else { return }
+        state.active!.usedAtStage += delta
+        var guardCount = 0
+        while state.active != nil, guardCount < 50 {
+            guardCount += 1
+            let a = state.active!
+            let thr = PokemonBalance.phaseThreshold(rarity: a.rarity, totalForms: a.totalForms, stageIndex: a.stageIndex)
+            guard a.usedAtStage >= thr else { break }
+            guard let node = line.tree.node(withID: a.currentID) else { break }
+            if node.children.isEmpty {
+                graduate(); break
+            } else {
+                let next = pickNextChild(node, baseID: a.baseID)
+                state.active!.pathIDs = Array(a.pathIDs.prefix(a.stageIndex + 1)) + [next.speciesID]
+                state.active!.stageIndex += 1
+                state.active!.usedAtStage = a.usedAtStage - thr   // 초과분 이월
+                justEvolvedTo = line.localizedName(next.speciesID, state.language)
+            }
         }
-        state.collection.append(CompanionInstance(
-            companionID: state.activeCompanionID, finalXP: state.activeXP,
-            maxed: true, hatchedAt: nil, maxedAt: clock()))
-        justGraduated = name
-        state.activeCompanionID = next.id
-        state.activeXP = 0
-        level = 1
-        justLeveledUp = true
-        levelUpUntil = clock().addingTimeInterval(5)
+        save()
     }
 
-    private func computeState(burnTier: SpinTier, limitWarning: Bool,
-                              hasUsageData: Bool, today: Int) -> CompanionStateKind {
-        if !state.hatched { return .egg }
-        if justLeveledUp { return .levelUp }
+    private func pickNextChild(_ node: EvoNode, baseID: Int) -> EvoNode {
+        let fresh = node.children.filter { ch in
+            ch.finalIDs.contains { !state.collectedFinals.contains("\(baseID):\($0)") }
+        }
+        let pool = fresh.isEmpty ? node.children : fresh
+        return pool[Int(rng.next() % UInt64(pool.count))]
+    }
+
+    private func graduate() {
+        guard let a = state.active else { return }
+        let finalID = a.currentID
+        state.collectedFinals.insert("\(a.baseID):\(finalID)")
+        state.dex.append(DexEntry(baseID: a.baseID, finalID: finalID,
+                                  chainOrder: a.pathIDs, rarity: a.rarity, caughtAt: clock()))
+        justGraduated = currentLine?.localizedName(finalID, state.language)
+        eventUntil = clock().addingTimeInterval(6)
+        state.active = nil
+        currentLine = nil
+    }
+
+    // MARK: 부화
+
+    func hatchIfNeeded() async {
+        guard state.active == nil, !isHatching, state.usedSinceInstall > 0 else { return }
+        await hatch(baseID: chooseBase())
+    }
+
+    func hatch(baseID: Int) async {
+        guard !isHatching else { return }
+        isHatching = true
+        defer { isHatching = false }
+        guard let line = try? await provider.line(baseSpeciesID: baseID) else { return }
+        currentLine = line
+        state.active = MonState(baseID: line.baseID, pathIDs: [line.baseID], stageIndex: 0,
+                                usedAtStage: 0, rarity: line.rarity, totalForms: line.totalForms)
+        displayState = .levelUp
+        eventUntil = clock().addingTimeInterval(4)
+        save()
+    }
+
+    private func loadCurrentLine() async {
+        guard let a = state.active, currentLine == nil, !isHatching else { return }
+        isHatching = true
+        defer { isHatching = false }
+        if let line = try? await provider.line(baseSpeciesID: a.baseID) { currentLine = line }
+    }
+
+    private func chooseBase() -> Int {
+        let pool = PokemonPool.baseIDs
+        return pool[Int(rng.next() % UInt64(pool.count))]
+    }
+
+    private func computeState(burnTier: BurnTier, limitWarning: Bool, hasUsageData: Bool, today: Int) -> CompanionStateKind {
+        if state.active == nil { return .egg }
+        if justGraduated != nil || (eventUntil != nil && clock() < eventUntil!) { return .levelUp }
         if limitWarning { return .tired }
         if !hasUsageData || today == 0 { return .sleep }
         switch burnTier {
@@ -135,6 +210,7 @@ final class CompanionStore {
         }
     }
 
+    // MARK: 영속
     private func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let s = try? JSONDecoder().decode(CompanionState.self, from: data) else { return }

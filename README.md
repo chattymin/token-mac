@@ -12,17 +12,16 @@
 - Claude Code / Codex 5시간 세션·주간 한도(%) 및 리셋 카운트다운
 - 현재 burn rate 기반 한도 소진 시각 예측
 - 임계값 초과 시 알림
-- burn rate에 따라 회전 속도가 변하는 메뉴바 코인 애니메이션
+- 토큰 사용량으로 성장하는 메뉴바 companion 캐릭터 (포켓몬, 한/영/일)
 
 ## 메뉴바 표시
 
-메뉴바에는 코인 아이콘과 **오늘 사용한 토큰 합계**(compact 표기)가 나타난다.
+메뉴바에는 companion 캐릭터(부화 전엔 알 🥚)와 **오늘 사용한 토큰 합계**(compact 표기)가 나타난다.
 
-<img src="assets/menubar.png" width="130" alt="메뉴바의 TokenMac — 코인 아이콘 + 오늘 토큰 합계">
+<img src="assets/menubar.png" width="130" alt="메뉴바의 TokenMac — companion 캐릭터 + 오늘 토큰 합계">
 
 - **숫자** — 오늘 모든 provider(Claude Code·Codex) 합산 토큰. `200.7M` = 200,700,000 (`K`/`M`/`B` 단위).
-- **코인 색** — 평소 골드, 한도 임박 예측 또는 임계 초과 시 빨강 (위 스크린샷은 경고 상태).
-- **코인 회전** — burn rate가 빠를수록 빨리 회전 (설정에서 끌 수 있음).
+- **캐릭터** — 설치 이후 토큰 사용량으로 진화하는 포켓몬. 가벼운 상하 bob 애니메이션. 자세한 동작은 [Companion](#companion-pokémon) 참조.
 - 설정에서 **비용($)**, **한도(%)**도 메뉴바에 함께 표시할 수 있다.
 
 아이콘을 클릭하면 위의 상세 팝오버가 열린다.
@@ -81,4 +80,17 @@ open /Applications/TokenMac.app
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The MIT license covers this project's source code only.
+
+## Companion (Pokémon)
+
+The growth companion fetches Pokémon data and sprites at runtime from
+[PokéAPI](https://pokeapi.co/); no Pokémon assets or data are bundled in this
+repository or its releases. Cached files are stored only on the user's machine
+under `~/Library/Application Support/TokenMac/`.
+
+This is an unofficial, non-commercial fan project. It is **not affiliated with,
+endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon
+Company**. Pokémon and Pokémon character names are trademarks of Nintendo;
+Pokémon names, data, and sprites are © Nintendo / Game Freak / The Pokémon
+Company and are used at runtime for identification only.

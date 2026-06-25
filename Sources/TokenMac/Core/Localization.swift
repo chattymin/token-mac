@@ -1,0 +1,124 @@
+import Foundation
+
+/// 앱 전체 UI 문자열 — 언어별. 단일 소스(AppLanguage)에서 파생한다.
+/// 뷰는 `companion.l.<key>` 로 접근하며, language 변경 시 @Observable 로 자동 재렌더된다.
+/// 포켓몬 이름은 PokéAPI 다국어 데이터(EvoLine.localizedName)에서 별도로 온다.
+struct L {
+    let lang: AppLanguage
+    init(_ lang: AppLanguage) { self.lang = lang }
+
+    private func t(_ ko: String, _ en: String, _ ja: String) -> String {
+        switch lang {
+        case .ko: return ko
+        case .en: return en
+        case .ja: return ja
+        }
+    }
+
+    // MARK: 탭
+    var home: String { t("홈", "Home", "ホーム") }
+    var collection: String { t("컬렉션", "Collection", "コレクション") }
+
+    // MARK: 헤더 (오늘/주/월)
+    var todayTokens: String { t("오늘 사용한 토큰", "Today's tokens", "本日のトークン") }
+    var thisWeek: String { t("이번 주", "This week", "今週") }
+    var thisMonth: String { t("이번 달", "This month", "今月") }
+
+    // MARK: 한도 섹션
+    var limitsOfficial: String { t("한도 (공식)", "Limits (official)", "上限（公式）") }
+    var fiveHourSession: String { t("5시간 세션", "5-hour session", "5時間セッション") }
+    var weekly: String { t("주간", "Weekly", "週間") }
+    var weeklyOpus: String { t("주간 Opus", "Weekly Opus", "週間 Opus") }
+    var weeklySonnet: String { t("주간 Sonnet", "Weekly Sonnet", "週間 Sonnet") }
+    var claudeCurrentBlock: String { t("Claude 현재 5h 블록", "Claude current 5h block", "Claude 現在の5hブロック") }
+    var reset: String { t("리셋", "Reset", "リセット") }
+    var limitReached: String { t("한도 도달", "Limit reached", "上限到達") }
+    var personalSpendLimit: String { t("개인 사용 한도", "Personal spend limit", "個人利用上限") }
+    func plan(_ p: String) -> String { t("플랜 \(p)", "Plan \(p)", "プラン \(p)") }
+    func forecastReach(_ time: String) -> String {
+        t("현재 속도면 \(time) 한도 도달", "At current rate, limit hit at \(time)", "現在のペースで \(time) に上限到達")
+    }
+    var forecastNoReach: String {
+        t("현재 속도로는 리셋 전 한도 도달 없음", "Won't hit limit before reset at current rate", "現在のペースではリセット前に上限到達なし")
+    }
+
+    /// Codex 한도 윈도우 이름 (windowDurationMins 기반). 알림·팝오버 공통.
+    func codexWindow(_ mins: Int?) -> String {
+        switch mins {
+        case 300: return fiveHourSession
+        case 10_080: return weekly
+        case let m? where m >= 60 && m % 60 == 0:
+            let h = m / 60
+            return t("\(h)시간", "\(h)h", "\(h)時間")
+        case let m?: return t("\(m)분", "\(m)m", "\(m)分")
+        case nil: return t("한도", "Limit", "上限")
+        }
+    }
+
+    // MARK: 푸터
+    var refreshNow: String { t("지금 새로고침", "Refresh now", "今すぐ更新") }
+    var updated: String { t("갱신", "Updated", "更新") }
+    var settings: String { t("설정", "Settings", "設定") }
+    var quit: String { t("종료", "Quit", "終了") }
+
+    // MARK: 설정
+    var refreshInterval: String { t("새로고침 간격", "Refresh interval", "更新間隔") }
+    var language: String { t("언어", "Language", "言語") }
+    var menuBarItems: String { t("메뉴바 표시 항목 (복수 선택)", "Menu bar items (multi-select)", "メニューバー表示項目（複数選択）") }
+    var todayTokensShort: String { t("오늘 토큰", "Today's tokens", "本日のトークン") }
+    var todayCost: String { t("오늘 비용 ($)", "Today's cost ($)", "本日のコスト ($)") }
+    var limitPercent: String { t("한도 %", "Limit %", "上限 %") }
+    var allOffHint: String { t("전부 끄면 캐릭터만 표시됩니다", "All off shows only the character", "すべてオフにするとキャラクターのみ表示") }
+    var disableKeychain: String { t("Keychain 접근 끄기", "Disable Keychain access", "Keychainアクセスを無効化") }
+    var disableKeychainHint: String { t("켜면 Claude Keychain 한도 조회만 건너뜁니다", "When on, skips only Claude Keychain limit lookup", "オンにするとClaude Keychainの上限取得のみスキップ") }
+    var refreshLimitToken: String { t("한도 토큰 캐시 갱신", "Refresh limit token cache", "上限トークンキャッシュを更新") }
+    var onlyOnPress: String { t("누를 때만 Keychain 확인", "Checks Keychain only when pressed", "押した時のみKeychain確認") }
+    var launchAtLogin: String { t("로그인 시 자동 시작", "Launch at login", "ログイン時に自動起動") }
+    var bundledOnly: String { t(".app 번들로 설치된 경우에만 사용 가능 (scripts/build-app.sh)", "Available only when installed as an .app bundle (scripts/build-app.sh)", ".appバンドルでインストールした場合のみ利用可能 (scripts/build-app.sh)") }
+    var limitAlertThresholds: String { t("한도 알림 임계값", "Limit alert thresholds", "上限通知のしきい値") }
+    var warning: String { t("경고", "Warning", "警告") }
+    var critical: String { t("임박", "Critical", "切迫") }
+    var aggregationNote: String { t("토큰 집계 기준: ccusage totalTokens (input + output + cache, 로컬 날짜)", "Token basis: ccusage totalTokens (input + output + cache, local date)", "集計基準: ccusage totalTokens (input + output + cache, ローカル日付)") }
+    var close: String { t("닫기", "Close", "閉じる") }
+
+    /// 새로고침 간격 라벨 (초 단위 값 → 표시). 0 = 수동.
+    func intervalLabel(_ seconds: TimeInterval) -> String {
+        if seconds == 0 { return t("수동", "Manual", "手動") }
+        let m = Int(seconds / 60)
+        return t("\(m)분", "\(m) min", "\(m)分")
+    }
+
+    // MARK: 컴패니언
+    var finalForm: String { t("최종 진화체", "Final form", "最終進化") }
+    func stage(_ i: Int, _ k: Int) -> String { t("진화 단계 \(i) / \(k)", "Stage \(i) / \(k)", "進化段階 \(i) / \(k)") }
+    var waitingFirstToken: String { t("설치 후 첫 토큰을 기다리는 중…", "Waiting for your first tokens…", "最初のトークンを待っています…") }
+    func toNextEvolution(_ amount: String) -> String { t("다음 진화까지 \(amount)", "\(amount) to next evolution", "次の進化まで \(amount)") }
+    func toGraduation(_ amount: String) -> String { t("졸업까지 \(amount)", "\(amount) to graduation", "卒業まで \(amount)") }
+    func graduated(_ name: String) -> String {
+        t("\(name) 졸업 → 도감에 보존. 새 Token Egg가 도착했어요!",
+          "\(name) graduated → saved to the dex. A new Token Egg has arrived!",
+          "\(name) 卒業 → 図鑑に保存。新しいToken Eggが届きました！")
+    }
+    var dexEmpty: String { t("아직 졸업한 포켓몬이 없어요. 최종 진화까지 키워보세요.", "No graduated Pokémon yet. Raise one to its final form.", "まだ卒業したポケモンがいません。最終進化まで育ててみましょう。") }
+    func formsComplete(_ n: Int) -> String { t("\(n)단계 · 완성", "\(n) forms · complete", "\(n)段階・完成") }
+
+    // 상태 한 줄
+    var statusEgg: String { t("곧 깨어나요.", "Hatching soon.", "もうすぐ孵化します。") }
+    var statusIdle: String { t("오늘은 조용히 자리를 지켜요.", "Keeping quiet today.", "今日は静かにしています。") }
+    var statusWorking: String { t("오늘의 작업 흔적이 쌓이고 있어요.", "Today's work is piling up.", "本日の作業が積み重なっています。") }
+    var statusFocus: String { t("지금은 집중 모드예요.", "In focus mode now.", "今は集中モードです。") }
+    var statusTired: String { t("한도에 가까워요. 잠깐 쉬어도 괜찮아요.", "Close to the limit. A short break is fine.", "上限が近いです。少し休んでも大丈夫。") }
+    var statusSleep: String { t("지금은 자고 있어요.", "Sleeping now.", "今は眠っています。") }
+    func statusEvolved(_ name: String) -> String { t("\(name)(으)로 진화했어요!", "Evolved into \(name)!", "\(name) に進化しました！") }
+    var statusGrew: String { t("성장했어요!", "It grew!", "成長しました！") }
+
+    // MARK: 알림
+    var notifCritical: String { t("한도 임박", "Limit imminent", "上限切迫") }
+    var notifWarning: String { t("한도 경고", "Limit warning", "上限警告") }
+    func notifBody(_ name: String, _ percent: String) -> String {
+        t("\(name) 한도 \(percent) 사용", "\(name) at \(percent)", "\(name) 上限 \(percent) 使用")
+    }
+    var claudeFiveHour: String { t("Claude 5시간 세션", "Claude 5-hour session", "Claude 5時間セッション") }
+    var claudeWeekly: String { t("Claude 주간", "Claude weekly", "Claude 週間") }
+    var codexPersonalLimit: String { t("Codex 개인 한도", "Codex personal limit", "Codex 個人上限") }
+}

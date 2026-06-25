@@ -3,8 +3,8 @@ import Foundation
 import Observation
 import UserNotifications
 
-/// 메뉴바 코인 회전 속도 단계 — burn rate 기반 (UI 가 프레임 시퀀스로 해석)
-enum SpinTier: Sendable {
+/// burn rate 단계 — companion 표시 상태(작업/집중) 판정에 사용.
+enum BurnTier: Sendable {
     case idle, normal, fast, blazing
 }
 
@@ -38,10 +38,6 @@ final class UsageStore {
     var critThreshold: Double {
         didSet { UserDefaults.standard.set(critThreshold, forKey: "critThreshold") }
     }
-    /// 메뉴바 코인 스핀 애니메이션
-    var spinEnabled: Bool {
-        didSet { UserDefaults.standard.set(spinEnabled, forKey: "spinEnabled") }
-    }
     // 메뉴바 표시 항목 (복수 선택 가능)
     var showTokensInMenu: Bool {
         didSet { UserDefaults.standard.set(showTokensInMenu, forKey: "showTokensInMenu") }
@@ -51,10 +47,6 @@ final class UsageStore {
     }
     var showLimitInMenu: Bool {
         didSet { UserDefaults.standard.set(showLimitInMenu, forKey: "showLimitInMenu") }
-    }
-    /// 메뉴바 아이콘을 코인 대신 companion 캐릭터로 표시
-    var companionInMenuBar: Bool {
-        didSet { UserDefaults.standard.set(companionInMenuBar, forKey: "companionInMenuBar") }
     }
     var disableKeychainAccess: Bool {
         didSet {
@@ -71,6 +63,10 @@ final class UsageStore {
     static let intervalPresets: [(label: String, value: TimeInterval)] = [
         ("수동", 0), ("1분", 60), ("2분", 120), ("5분", 300), ("15분", 900),
     ]
+
+    /// 앱 언어 미러(알림 현지화용). 단일 소스는 CompanionStore.language —
+    /// 설정 변경/기동 시 동기화한다.
+    var localizationLanguage: AppLanguage = .ko
 
     private let providers: [any UsageProvider]
     private let limitsProvider = OAuthLimitsProvider()
@@ -170,9 +166,8 @@ final class UsageStore {
         return false
     }
 
-    /// 코인 스핀 속도 티어 — burn rate 가 높을수록 빨리 돈다.
-    /// 티어가 회전 속도와 프레임 시퀀스를 함께 결정해 초당 이미지 교체를 ~5회로 상한 (CPU 보호)
-    var spinTier: SpinTier {
+    /// burn rate 티어 — companion 표시 상태(idle/working/focus) 판정에 사용.
+    var burnTier: BurnTier {
         guard let burn = claudeActiveBlock?.tokensPerMinute, burn > 1_000 else { return .idle }
         if burn < 100_000 { return .normal }
         if burn < 400_000 { return .fast }
@@ -193,11 +188,9 @@ final class UsageStore {
         refreshInterval = d.object(forKey: "refreshInterval") as? TimeInterval ?? 120
         warnThreshold = d.object(forKey: "warnThreshold") as? Double ?? 80
         critThreshold = d.object(forKey: "critThreshold") as? Double ?? 95
-        spinEnabled = d.object(forKey: "spinEnabled") as? Bool ?? true
         showTokensInMenu = d.object(forKey: "showTokensInMenu") as? Bool ?? true
         showCostInMenu = d.object(forKey: "showCostInMenu") as? Bool ?? false
         showLimitInMenu = d.object(forKey: "showLimitInMenu") as? Bool ?? false
-        companionInMenuBar = d.object(forKey: "companionInMenuBar") as? Bool ?? false
         disableKeychainAccess = d.object(forKey: "disableKeychainAccess") as? Bool ?? false
 
         reschedule()
@@ -415,17 +408,18 @@ final class UsageStore {
 
     private func checkLimitNotifications() {
         guard Bundle.main.bundleIdentifier != nil, Bundle.main.bundlePath.hasSuffix(".app") else { return }
+        let l = L(localizationLanguage)
         var windows: [(name: String, utilization: Double, resetKey: String)] = []
         if let limits {
             if let utilization = limits.fiveHour?.utilization {
                 windows.append((
-                    "Claude 5시간 세션",
+                    l.claudeFiveHour,
                     utilization,
                     limits.fiveHour?.resetsAt ?? "none"))
             }
             if let utilization = limits.sevenDay?.utilization {
                 windows.append((
-                    "Claude 주간",
+                    l.claudeWeekly,
                     utilization,
                     limits.sevenDay?.resetsAt ?? "none"))
             }
@@ -433,19 +427,19 @@ final class UsageStore {
         if let codex = codexLimits?.codex {
             if let primary = codex.primary {
                 windows.append((
-                    "Codex \(primary.displayName)",
+                    "Codex \(l.codexWindow(primary.windowDurationMins))",
                     Double(primary.usedPercent),
                     primary.resetsAt.map(String.init) ?? "none"))
             }
             if let secondary = codex.secondary {
                 windows.append((
-                    "Codex \(secondary.displayName)",
+                    "Codex \(l.codexWindow(secondary.windowDurationMins))",
                     Double(secondary.usedPercent),
                     secondary.resetsAt.map(String.init) ?? "none"))
             }
             if let individual = codex.individualLimit {
                 windows.append((
-                    "Codex 개인 한도",
+                    l.codexPersonalLimit,
                     Double(individual.usedPercent),
                     String(individual.resetsAt)))
             }
@@ -457,8 +451,8 @@ final class UsageStore {
                 guard !notifiedKeys.contains(key) else { break }
                 notifiedKeys.insert(key)
                 let content = UNMutableNotificationContent()
-                content.title = level == "critical" ? "한도 임박" : "한도 경고"
-                content.body = "\(name) 한도 \(TokenFormatter.percent(utilization)) 사용"
+                content.title = level == "critical" ? l.notifCritical : l.notifWarning
+                content.body = l.notifBody(name, TokenFormatter.percent(utilization))
                 content.sound = level == "critical" ? .default : nil
                 UNUserNotificationCenter.current().add(
                     UNNotificationRequest(identifier: key, content: content, trigger: nil))
