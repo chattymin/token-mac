@@ -76,6 +76,9 @@ struct L {
     var launchAtLogin: String { t("로그인 시 자동 시작", "Launch at login", "ログイン時に自動起動") }
     var bundledOnly: String { t(".app 번들로 설치된 경우에만 사용 가능 (scripts/build-app.sh)", "Available only when installed as an .app bundle (scripts/build-app.sh)", ".appバンドルでインストールした場合のみ利用可能 (scripts/build-app.sh)") }
     var limitAlertThresholds: String { t("한도 알림 임계값", "Limit alert thresholds", "上限通知のしきい値") }
+    var notificationsSection: String { t("알림", "Notifications", "通知") }
+    var limitNotificationsLabel: String { t("한도 알림", "Limit alerts", "上限通知") }
+    var companionNotificationsLabel: String { t("Companion 이벤트 (부화·진화·졸업)", "Companion events (hatch / evolve / graduate)", "コンパニオンイベント（孵化・進化・卒業）") }
     var warning: String { t("경고", "Warning", "警告") }
     var critical: String { t("임박", "Critical", "切迫") }
     var aggregationNote: String { t("토큰 집계 기준: ccusage totalTokens (input + output + cache, 로컬 날짜)", "Token basis: ccusage totalTokens (input + output + cache, local date)", "集計基準: ccusage totalTokens (input + output + cache, ローカル日付)") }
@@ -130,6 +133,14 @@ struct L {
     var statusSleep: String { t("지금은 자고 있어요.", "Sleeping now.", "今は眠っています。") }
     func statusEvolved(_ name: String) -> String { t("\(name)(으)로 진화했어요!", "Evolved into \(name)!", "\(name) に進化しました！") }
     var statusGrew: String { t("성장했어요!", "It grew!", "成長しました！") }
+
+    // MARK: companion 이벤트 시스템 알림
+    var notifHatchTitle: String { t("🥚 부화!", "🥚 Hatched!", "🥚 孵化！") }
+    func notifHatchBody(_ name: String) -> String { t("알에서 \(name)이(가) 나왔어요!", "\(name) hatched from the egg!", "タマゴから \(name) が生まれました！") }
+    var notifEvolveTitle: String { t("✨ 진화!", "✨ Evolved!", "✨ 進化！") }
+    func notifEvolveBody(_ name: String) -> String { t("\(name)(으)로 진화했어요!", "Evolved into \(name)!", "\(name) に進化しました！") }
+    var notifGraduateTitle: String { t("🎓 졸업!", "🎓 Graduated!", "🎓 卒業！") }
+    func notifGraduateBody(_ name: String) -> String { t("\(name) — 도감에 보존! 새 알이 도착했어요.", "\(name) — saved to your Pokédex! A new egg has arrived.", "\(name) — 図鑑に保存！新しいタマゴが届きました。") }
 
     // MARK: Claude 한도 토큰 갱신 오류 (친절 안내)
     func limitRefreshHTTPError(_ status: Int) -> String {

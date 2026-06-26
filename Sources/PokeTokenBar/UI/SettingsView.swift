@@ -106,24 +106,26 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(l.limitAlertThresholds)
-                    .font(.callout)
-                HStack {
-                    Text(l.warning)
-                    Slider(value: $store.warnThreshold, in: 50...95, step: 5)
-                    Text(TokenFormatter.percent(store.warnThreshold))
-                        .monospacedDigit()
-                        .frame(width: 40, alignment: .trailing)
+                Text(l.notificationsSection).font(.callout)
+                Toggle(l.limitNotificationsLabel, isOn: $store.limitNotifications)
+                if store.limitNotifications {
+                    // 한도 알림 켜진 경우에만 임계값 슬라이더 노출
+                    HStack {
+                        Text(l.warning)
+                        Slider(value: $store.warnThreshold, in: 50...95, step: 5)
+                        Text(TokenFormatter.percent(store.warnThreshold))
+                            .monospacedDigit().frame(width: 40, alignment: .trailing)
+                    }
+                    .font(.caption).padding(.leading, 12)
+                    HStack {
+                        Text(l.critical)
+                        Slider(value: $store.critThreshold, in: 80...100, step: 5)
+                        Text(TokenFormatter.percent(store.critThreshold))
+                            .monospacedDigit().frame(width: 40, alignment: .trailing)
+                    }
+                    .font(.caption).padding(.leading, 12)
                 }
-                .font(.caption)
-                HStack {
-                    Text(l.critical)
-                    Slider(value: $store.critThreshold, in: 80...100, step: 5)
-                    Text(TokenFormatter.percent(store.critThreshold))
-                        .monospacedDigit()
-                        .frame(width: 40, alignment: .trailing)
-                }
-                .font(.caption)
+                Toggle(l.companionNotificationsLabel, isOn: $store.companionNotifications)
             }
 
             Text(l.aggregationNote)
