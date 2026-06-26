@@ -1,11 +1,10 @@
 import Foundation
 
-/// ccusage 바이너리 기반 수집.
-/// Homebrew(Apple Silicon/Intel) 설치 경로를 순서대로 탐색한다.
+/// ccusage 바이너리 기반 수집. 바이너리 경로는 CcusageLocator 가 해석한다
+/// (Homebrew 외 mise/nvm/asdf 등 버전매니저 설치도 셸 PATH 로 탐색).
 struct CcusageProvider: UsageProvider {
     let id: String
     let displayName: String
-    let binaryCandidates: [String]
     let commandPrefix: [String]
     let supportsBlocks: Bool
     let supportsWeekly: Bool
@@ -14,10 +13,6 @@ struct CcusageProvider: UsageProvider {
     static let claude = CcusageProvider(
         id: "claude_code",
         displayName: "Claude Code",
-        binaryCandidates: [
-            "/opt/homebrew/bin/ccusage",
-            "/usr/local/bin/ccusage",
-        ],
         commandPrefix: ["claude"],
         supportsBlocks: true,
         supportsWeekly: true,
@@ -27,10 +22,6 @@ struct CcusageProvider: UsageProvider {
     static let codex = CcusageProvider(
         id: "codex",
         displayName: "Codex",
-        binaryCandidates: [
-            "/opt/homebrew/bin/ccusage",
-            "/usr/local/bin/ccusage",
-        ],
         commandPrefix: ["codex"],
         supportsBlocks: false,
         supportsWeekly: false,
@@ -38,7 +29,7 @@ struct CcusageProvider: UsageProvider {
     )
 
     var resolvedBinary: String? {
-        binaryCandidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        BinaryLocator.resolve("ccusage", staticPaths: BinaryLocator.commonNodeToolPaths("ccusage"))
     }
 
     // MARK: critical path — 오늘 합계

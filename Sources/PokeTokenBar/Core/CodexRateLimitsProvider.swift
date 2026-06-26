@@ -20,7 +20,8 @@ struct CodexRateLimitsProvider {
     }
 
     var resolvedBinary: String? {
-        binaryCandidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        // 앱 번들/홈 경로 우선, 이후 버전매니저 공통 경로 + 로그인 셸 PATH 해석(mise 등).
+        BinaryLocator.resolve("codex", staticPaths: binaryCandidates + BinaryLocator.commonNodeToolPaths("codex"))
     }
 
     func fetch() async throws -> CodexRateLimitStatus? {
