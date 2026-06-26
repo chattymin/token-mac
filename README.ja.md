@@ -6,7 +6,7 @@
 
 **あなたのAIコーディングトークンを、ポケモンに — メニューバーで。**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0-444d56)](https://github.com/chattymin/poke-token-bar/releases)
+[![Release](https://img.shields.io/badge/release-v2.0.0-444d56)](https://github.com/chattymin/poke-token-bar/releases)
 [![macOS](https://img.shields.io/badge/macOS-14%2B-0969da)](https://www.apple.com/macos/)
 [![Swift](https://img.shields.io/badge/Swift-6-f05138)](https://swift.org)
 [![Homebrew](https://img.shields.io/badge/Homebrew-cask-8957e5)](#homebrew)
