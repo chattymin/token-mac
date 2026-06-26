@@ -48,6 +48,13 @@ final class UsageStore {
     var showLimitInMenu: Bool {
         didSet { UserDefaults.standard.set(showLimitInMenu, forKey: "showLimitInMenu") }
     }
+    // 알림(독립 토글)
+    var limitNotifications: Bool {
+        didSet { UserDefaults.standard.set(limitNotifications, forKey: "limitNotifications") }
+    }
+    var companionNotifications: Bool {
+        didSet { UserDefaults.standard.set(companionNotifications, forKey: "companionNotifications") }
+    }
     var disableKeychainAccess: Bool {
         didSet {
             KeychainAccessGate.isDisabled = disableKeychainAccess
@@ -191,6 +198,8 @@ final class UsageStore {
         showTokensInMenu = d.object(forKey: "showTokensInMenu") as? Bool ?? true
         showCostInMenu = d.object(forKey: "showCostInMenu") as? Bool ?? false
         showLimitInMenu = d.object(forKey: "showLimitInMenu") as? Bool ?? false
+        limitNotifications = d.object(forKey: "limitNotifications") as? Bool ?? true
+        companionNotifications = d.object(forKey: "companionNotifications") as? Bool ?? true
         disableKeychainAccess = d.object(forKey: "disableKeychainAccess") as? Bool ?? false
 
         reschedule()
@@ -421,6 +430,7 @@ final class UsageStore {
     }
 
     private func checkLimitNotifications() {
+        guard limitNotifications else { return }
         guard Bundle.main.bundleIdentifier != nil, Bundle.main.bundlePath.hasSuffix(".app") else { return }
         let l = L(localizationLanguage)
         var windows: [(name: String, utilization: Double, resetKey: String)] = []

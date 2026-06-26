@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 /// 게임 상태의 출처. 설치 이후 토큰 사용량으로 포켓몬을 진화시키고, 최종체 + 추가 임계 도달 시
 /// 도감(라인 전체)에 보존 + 새 알. 진화 트리/희귀도/이름은 PokeProviding 으로 런타임 주입.
@@ -163,7 +164,9 @@ final class CompanionStore {
                 state.active!.pathIDs = Array(a.pathIDs.prefix(a.stageIndex + 1)) + [next.speciesID]
                 state.active!.stageIndex += 1
                 state.active!.usedAtStage = a.usedAtStage - thr   // 초과분 이월
-                justEvolvedTo = line.localizedName(next.speciesID, state.language)
+                let newName = line.localizedName(next.speciesID, state.language)
+                justEvolvedTo = newName
+                notifyCompanionEvent(l.notifEvolveTitle, l.notifEvolveBody(newName))
             }
         }
         save()
@@ -183,11 +186,27 @@ final class CompanionStore {
         state.collectedFinals.insert("\(a.baseID):\(finalID)")
         state.dex.append(DexEntry(baseID: a.baseID, finalID: finalID,
                                   chainOrder: a.pathIDs, rarity: a.rarity, caughtAt: clock()))
-        justGraduated = currentLine?.localizedName(finalID, state.language)
+        let name = currentLine?.localizedName(finalID, state.language) ?? ""
+        justGraduated = name
+        notifyCompanionEvent(l.notifGraduateTitle, l.notifGraduateBody(name))
         eventUntil = clock().addingTimeInterval(6)
         state.active = nil
         currentLine = nil
         state.eggUsage = 0   // 새 알은 처음부터 인큐베이션
+    }
+
+    /// companion 이벤트 시스템 알림(.app + 토글 ON 일 때만). 한도 알림과 독립.
+    private var notifSeq = 0
+    private func notifyCompanionEvent(_ title: String, _ body: String) {
+        guard Bundle.main.bundleIdentifier != nil, Bundle.main.bundlePath.hasSuffix(".app") else { return }
+        guard UserDefaults.standard.object(forKey: "companionNotifications") as? Bool ?? true else { return }
+        notifSeq += 1
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "companion-event-\(notifSeq)", content: content, trigger: nil))
     }
 
     // MARK: 부화
@@ -208,6 +227,7 @@ final class CompanionStore {
         state.eggUsage = 0
         state.active = MonState(baseID: line.baseID, pathIDs: [line.baseID], stageIndex: 0,
                                 usedAtStage: 0, rarity: line.rarity, totalForms: line.totalForms)
+        notifyCompanionEvent(l.notifHatchTitle, l.notifHatchBody(line.localizedName(line.baseID, state.language)))
         displayState = .levelUp
         eventUntil = clock().addingTimeInterval(4)
         if overflow > 0 { applyUsage(overflow) }   // 이월분 즉시 반영(필요 시 진화까지)
