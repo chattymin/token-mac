@@ -19,3 +19,9 @@ build/
 *.key
 *.cer
 *.certSigningRequest
+
+# Personal dev notes (kept locally, not published)
+docs/
+
+# Agent worktrees / local state
+.claude/
