@@ -48,6 +48,12 @@ final class CompanionStore {
     var hasActive: Bool { state.active != nil }
     var rarity: Rarity? { state.active?.rarity }
 
+    // 알 인큐베이션 (active 없을 때)
+    var isEgg: Bool { state.active == nil }
+    var eggStarted: Bool { state.eggUsage > 0 }
+    var eggProgress: Double { min(1, max(0, Double(state.eggUsage) / Double(PokemonBalance.eggHatchThreshold))) }
+    var eggTokensToHatch: Int { max(0, PokemonBalance.eggHatchThreshold - state.eggUsage) }
+
     var displayName: String {
         guard let a = state.active, let line = currentLine else { return "Token Egg" }
         return line.localizedName(a.currentID, state.language)
@@ -117,13 +123,17 @@ final class CompanionStore {
                 let delta = todayTokens - state.claimedTodayTokens
                 state.claimedTodayTokens = todayTokens
                 state.usedSinceInstall += delta
-                applyUsage(delta)
+                if state.active == nil {
+                    state.eggUsage += delta   // 알 인큐베이션 누적
+                } else {
+                    applyUsage(delta)
+                }
             }
         }
         // 이벤트 만료
         if let until = eventUntil, clock() > until { justGraduated = nil; eventUntil = nil }
-        // 알이면 부화(첫 사용량 후 / 졸업 후)
-        if state.active == nil, state.usedSinceInstall > 0, !isHatching {
+        // 알이 부화 임계에 도달하면 부화
+        if state.active == nil, state.eggUsage >= PokemonBalance.eggHatchThreshold, !isHatching {
             Task { await hatchIfNeeded() }
         }
         // active 인데 라인 미로딩(앱 재시작) → 로드
@@ -177,12 +187,13 @@ final class CompanionStore {
         eventUntil = clock().addingTimeInterval(6)
         state.active = nil
         currentLine = nil
+        state.eggUsage = 0   // 새 알은 처음부터 인큐베이션
     }
 
     // MARK: 부화
 
     func hatchIfNeeded() async {
-        guard state.active == nil, !isHatching, state.usedSinceInstall > 0 else { return }
+        guard state.active == nil, !isHatching, state.eggUsage >= PokemonBalance.eggHatchThreshold else { return }
         await hatch(baseID: chooseBase())
     }
 
@@ -192,10 +203,14 @@ final class CompanionStore {
         defer { isHatching = false }
         guard let line = try? await provider.line(baseSpeciesID: baseID) else { return }
         currentLine = line
+        // 부화 임계 초과분은 부화체 성장에 이월(낭비 없음).
+        let overflow = max(0, state.eggUsage - PokemonBalance.eggHatchThreshold)
+        state.eggUsage = 0
         state.active = MonState(baseID: line.baseID, pathIDs: [line.baseID], stageIndex: 0,
                                 usedAtStage: 0, rarity: line.rarity, totalForms: line.totalForms)
         displayState = .levelUp
         eventUntil = clock().addingTimeInterval(4)
+        if overflow > 0 { applyUsage(overflow) }   // 이월분 즉시 반영(필요 시 진화까지)
         save()
     }
 

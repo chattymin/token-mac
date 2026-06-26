@@ -134,6 +134,62 @@ final class CompanionStoreTests: XCTestCase {
         XCTAssertEqual(s.state.usedSinceInstall, 100_000_000)
     }
 
+    private func base(_ s: CompanionStore) {
+        s.update(todayTokens: 0, todayDate: "d1", monthTotal: 0, burnTier: .idle, limitWarning: false, hasUsageData: true)
+    }
+    private func use(_ s: CompanionStore, _ today: Int) {
+        s.update(todayTokens: today, todayDate: "d1", monthTotal: 0, burnTier: .idle, limitWarning: false, hasUsageData: true)
+    }
+
+    func testEggDoesNotHatchBelowThreshold() async {
+        let s = store(linear3)
+        base(s)
+        use(s, 500_000)   // < 1M
+        XCTAssertEqual(s.state.eggUsage, 500_000)
+        XCTAssertTrue(s.isEgg)
+        await s.hatchIfNeeded()
+        XCTAssertNil(s.state.active)   // 임계 미만 → 미부화
+    }
+
+    func testEggHatchesAtThreshold() async {
+        let s = store(linear3)
+        base(s)
+        use(s, PokemonBalance.eggHatchThreshold)   // = 1M
+        XCTAssertEqual(s.state.eggUsage, PokemonBalance.eggHatchThreshold)
+        await s.hatchIfNeeded()
+        XCTAssertNotNil(s.state.active)
+        XCTAssertEqual(s.state.eggUsage, 0)
+    }
+
+    func testEggOverflowCarriesToHatchedMon() async {
+        let s = store(linear3)
+        base(s)
+        use(s, PokemonBalance.eggHatchThreshold + 500_000)   // 임계 초과 0.5M
+        await s.hatchIfNeeded()
+        XCTAssertEqual(s.state.active?.usedAtStage, 500_000)   // 초과분 이월
+    }
+
+    func testNewEggAfterGraduationReincubates() async {
+        let s = store(noEvo)
+        base(s)
+        use(s, PokemonBalance.eggHatchThreshold)
+        await s.hatchIfNeeded()
+        XCTAssertNotNil(s.state.active)
+        s.applyUsage(PokemonBalance.graduationTotal(.common))   // 무진화 졸업
+        XCTAssertNil(s.state.active)
+        XCTAssertEqual(s.state.eggUsage, 0)                     // 새 알 인큐베이션 리셋
+        await s.hatchIfNeeded()                                 // eggUsage=0 → 즉시 부화 안 함
+        XCTAssertNil(s.state.active)
+    }
+
+    func testStateDecodesWithoutEggUsage() throws {
+        // 기존 저장(필드 없음)도 깨지지 않고 eggUsage=0 으로 로드
+        let json = #"{"installBaselineSet":true,"usedSinceInstall":5,"claimedTodayTokens":5,"lastDate":"d","active":null,"dex":[],"collectedFinals":[],"language":"ko"}"#
+        let state = try JSONDecoder().decode(CompanionState.self, from: Data(json.utf8))
+        XCTAssertEqual(state.eggUsage, 0)
+        XCTAssertEqual(state.usedSinceInstall, 5)
+    }
+
     func testEvolvesThroughLineAndGraduatesWithFullChain() async {
         let s = store(linear3)
         await s.hatch(baseID: 1)

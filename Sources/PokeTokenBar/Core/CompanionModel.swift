@@ -45,6 +45,9 @@ enum Rarity: String, Codable, Sendable {
 /// 졸업 총량 T 는 같은 희귀도면 진화 단계 수와 무관하게 동일.
 /// 형태 k개 라인에서 i번째 형태 성장 비용 = T·i / (k(k+1)/2) → 합 = T, 단계↑일수록 비용↑.
 enum PokemonBalance {
+    /// 알 부화 임계 — 이만큼 토큰을 써야 알이 깨진다(즉시 부화 대신 기대감). 초과분은 부화체 성장에 이월.
+    static let eggHatchThreshold = 5_000_000
+
     static func graduationTotal(_ rarity: Rarity) -> Int {
         switch rarity {
         case .common:    return    750_000_000
@@ -128,6 +131,8 @@ struct CompanionState: Codable, Sendable {
     // 토큰: 설치 이후만 측정
     var installBaselineSet = false
     var usedSinceInstall = 0
+    // 현재 알이 생긴 뒤 쓴 토큰(부화 인큐베이션). 누적(usedSinceInstall)과 별개 — 졸업 후 새 알마다 0.
+    var eggUsage = 0
     var claimedTodayTokens = 0
     var lastDate = ""
     // 현재 포켓몬(없으면 알)
@@ -139,6 +144,20 @@ struct CompanionState: Codable, Sendable {
     var language: AppLanguage = .ko
 
     init() {}
+
+    // 하위호환 디코딩: 누락 키는 기본값(필드 추가가 기존 저장을 깨지 않도록).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        installBaselineSet = try c.decodeIfPresent(Bool.self, forKey: .installBaselineSet) ?? false
+        usedSinceInstall = try c.decodeIfPresent(Int.self, forKey: .usedSinceInstall) ?? 0
+        eggUsage = try c.decodeIfPresent(Int.self, forKey: .eggUsage) ?? 0
+        claimedTodayTokens = try c.decodeIfPresent(Int.self, forKey: .claimedTodayTokens) ?? 0
+        lastDate = try c.decodeIfPresent(String.self, forKey: .lastDate) ?? ""
+        active = try c.decodeIfPresent(MonState.self, forKey: .active)
+        dex = try c.decodeIfPresent([DexEntry].self, forKey: .dex) ?? []
+        collectedFinals = try c.decodeIfPresent(Set<String>.self, forKey: .collectedFinals) ?? []
+        language = try c.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .ko
+    }
 }
 
 /// 부화 후보 base 종 — (PokéAPI 식별자, 선택 가중 tier). 3단/2단/무진화/분기 골고루.

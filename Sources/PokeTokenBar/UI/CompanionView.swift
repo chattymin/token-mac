@@ -131,7 +131,11 @@ struct CompanionHeader: View {
                                 .font(.caption2).foregroundStyle(.tertiary)
                         }
                     } else {
-                        Text(store.l.waitingFirstToken).font(.caption2).foregroundStyle(.secondary)
+                        // 알 인큐베이션 — 부화까지 진행
+                        Text(store.l.eggIncubating).font(.caption2).foregroundStyle(.secondary)
+                        ProgressView(value: store.eggProgress).controlSize(.small).tint(.orange)
+                        Text(store.l.eggToHatch(TokenFormatter.compact(store.eggTokensToHatch)))
+                            .font(.caption2).foregroundStyle(.tertiary)
                     }
                     Text(statusLine).font(.caption2).foregroundStyle(.secondary)
                 }
