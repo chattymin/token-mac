@@ -137,9 +137,13 @@
     pointer-events: none;
   }
   .hero .wrap { position: relative; text-align: center; }
-  .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.6rem); margin: 22px auto 0; max-width: 18ch; }
-  .hero h1 .accent { background: linear-gradient(120deg, #ff6a5a, #f5a623); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero p.lead { font-size: clamp(1.05rem, 2.2vw, 1.26rem); color: var(--muted); max-width: 62ch; margin: 20px auto 0; }
+  .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.6rem); margin: 22px auto 0; text-wrap: balance; }
+  /* 색깔 구절을 항상 다음 줄로 — 모든 언어에서 "흰색=1행 / 색깔=2행" 고정 */
+  .hero h1 .accent { display: block; background: linear-gradient(120deg, #ff6a5a, #f5a623); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* 한국어는 단어 중간에서 줄바꿈하지 않도록 (일본어는 문자 단위 기본 동작 유지) */
+  html:lang(ko) { word-break: keep-all; }
+  .hero p.lead { font-size: clamp(1.05rem, 2.2vw, 1.26rem); color: var(--muted); max-width: 60ch; margin: 20px auto 0; }
+  html:lang(ko) .hero p.lead, html:lang(ja) .hero p.lead { max-width: 42ch; }
   .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
   .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
   .badges img { height: 22px; }
