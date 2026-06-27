@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PokeTokenBar — Your AI coding tokens, hatched into Pokémon</title>
+<meta name="description" content="A macOS menu-bar app that shows today's Claude Code & Codex token usage and turns it into a growing Pokémon companion. Hatch an egg, evolve it, graduate it into your Pokédex.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="PokeTokenBar — AI coding tokens, hatched into Pokémon">
+<meta property="og:description" content="Track today's Claude Code & Codex tokens in your macOS menu bar — and raise a Pokémon companion that evolves as you code.">
+<meta property="og:image" content="assets/screenshot-home.png">
+<meta property="og:url" content="https://chattymin.github.io/PokeTokenBar/">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+  :root {
+    --bg:        #0d0e12;
+    --bg-soft:   #14161c;
+    --card:      #181b22;
+    --card-2:    #1d212a;
+    --border:    #272c37;
+    --fg:        #f4f5f7;
+    --muted:     #99a2b2;
+    --faint:     #6b7280;
+    --red:       #e8402f;   /* Poké red — primary */
+    --red-2:     #b0241b;
+    --orange:    #f5a623;   /* progress bars */
+    --green:     #3fb950;
+    --blue:      #2d9cff;   /* RARE badge */
+    --gold:      #f4c430;   /* legendary */
+    --radius:    16px;
+    --maxw:      1080px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { line-height: 1.18; letter-spacing: -0.02em; margin: 0; }
+  section { padding: 84px 0; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--red); background: rgba(232,64,47,0.1);
+    border: 1px solid rgba(232,64,47,0.28); border-radius: 999px; padding: 6px 14px;
+  }
+  .muted { color: var(--muted); }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(13,14,18,0.72); backdrop-filter: saturate(160%) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nav-links a { color: var(--muted); font-size: 0.92rem; font-weight: 500; transition: color .15s; }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta {
+    color: var(--fg) !important; border: 1px solid var(--border);
+    padding: 7px 15px; border-radius: 9px; background: var(--card);
+  }
+  .nav-cta:hover { border-color: var(--red); }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-weight: 600; font-size: 0.96rem; padding: 13px 22px; border-radius: 12px;
+    border: 1px solid transparent; cursor: pointer; transition: transform .12s, background .15s, border-color .15s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: linear-gradient(180deg, var(--red), var(--red-2)); color: #fff; box-shadow: 0 8px 24px rgba(232,64,47,0.28); }
+  .btn-primary:hover { background: linear-gradient(180deg, #f24b3a, #c0291d); }
+  .btn-ghost { background: var(--card); color: var(--fg); border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--faint); }
+
+  /* ---------- Hero ---------- */
+  .hero { position: relative; padding: 76px 0 64px; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(620px 360px at 50% -8%, rgba(232,64,47,0.22), transparent 70%),
+      radial-gradient(500px 320px at 88% 18%, rgba(245,166,35,0.10), transparent 70%);
+    pointer-events: none;
+  }
+  .hero .wrap { position: relative; text-align: center; }
+  .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.6rem); margin: 22px auto 0; max-width: 16ch; }
+  .hero h1 .accent { background: linear-gradient(120deg, #ff6a5a, #f5a623); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p.lead { font-size: clamp(1.05rem, 2.2vw, 1.28rem); color: var(--muted); max-width: 60ch; margin: 20px auto 0; }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+  .badges img { height: 22px; }
+
+  /* hero artwork */
+  .shot { margin-top: 54px; position: relative; display: inline-block; }
+  .shot .menubar {
+    position: absolute; top: -26px; left: 50%; transform: translateX(-50%);
+    width: 220px; border-radius: 10px; border: 1px solid var(--border);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5); z-index: 2;
+  }
+  .window {
+    border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    background: var(--card); box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+    max-width: 420px;
+  }
+  .window .titlebar { display: flex; gap: 7px; padding: 11px 14px; background: var(--card-2); border-bottom: 1px solid var(--border); }
+  .window .titlebar i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+  .window img { display: block; width: 100%; }
+
+  /* ---------- Works-with strip ---------- */
+  .strip { padding: 30px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg-soft); }
+  .strip .wrap { display: flex; align-items: center; justify-content: center; gap: 14px 30px; flex-wrap: wrap; }
+  .strip .label { color: var(--faint); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; font-size: 0.98rem; }
+  .chip .d { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---------- Section heads ---------- */
+  .sec-head { text-align: center; max-width: 60ch; margin: 0 auto 52px; }
+  .sec-head h2 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); }
+  .sec-head p { color: var(--muted); margin-top: 14px; font-size: 1.06rem; }
+
+  /* ---------- Features grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feat {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px 24px; transition: border-color .15s, transform .15s;
+  }
+  .feat:hover { border-color: var(--faint); transform: translateY(-3px); }
+  .feat .ic { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; font-size: 1.4rem; margin-bottom: 16px; }
+  .feat h3 { font-size: 1.12rem; }
+  .feat p { color: var(--muted); margin: 9px 0 0; font-size: 0.97rem; }
+
+  /* ---------- Companion section ---------- */
+  .companion { background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 50px; }
+  .step { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 18px; text-align: center; position: relative; }
+  .step .emoji { font-size: 2rem; }
+  .step h4 { margin: 12px 0 6px; font-size: 1.02rem; }
+  .step p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .step .arrow { position: absolute; right: -13px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 1.2rem; z-index: 2; }
+  .companion-shots { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  .companion-shots figure { margin: 0; }
+  .companion-shots img { width: 100%; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+  .companion-shots figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 12px; text-align: center; }
+  .rarity-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+  .pill { font-size: 0.82rem; font-weight: 700; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); }
+
+  /* ---------- Install ---------- */
+  .install-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 22px; align-items: start; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; }
+  .panel h3 { font-size: 1.16rem; margin-bottom: 6px; }
+  .panel h3 .step-n { color: var(--red); font-variant-numeric: tabular-nums; }
+  .code {
+    position: relative; background: #0a0b0e; border: 1px solid var(--border); border-radius: 11px;
+    padding: 15px 52px 15px 16px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.9rem; color: #e6e9ef; overflow-x: auto; margin-top: 14px;
+  }
+  .code .tok-cmd { color: var(--green); }
+  .copy {
+    position: absolute; top: 9px; right: 9px; background: var(--card-2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 8px; padding: 6px 9px; font-size: 0.78rem; cursor: pointer; transition: all .15s;
+  }
+  .copy:hover { color: var(--fg); border-color: var(--faint); }
+  .copy.done { color: var(--green); border-color: var(--green); }
+  .req-list { list-style: none; padding: 0; margin: 0; }
+  .req-list li { display: flex; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .req-list li:last-child { border-bottom: 0; }
+  .req-list .k { color: var(--fg); font-weight: 600; min-width: 96px; }
+  .note { color: var(--faint); font-size: 0.86rem; margin-top: 14px; }
+
+  /* ---------- Footer ---------- */
+  footer { border-top: 1px solid var(--border); padding: 56px 0 44px; background: var(--bg-soft); }
+  .foot-top { display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap; }
+  .foot-links { display: flex; gap: 26px; flex-wrap: wrap; }
+  .foot-links a { color: var(--muted); font-size: 0.94rem; }
+  .foot-links a:hover { color: var(--fg); }
+  .disclaimer { color: var(--faint); font-size: 0.8rem; margin-top: 30px; max-width: 88ch; line-height: 1.65; }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .step .arrow { display: none; }
+    .install-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 620px) {
+    section { padding: 60px 0; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .companion-shots { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Nav ===== -->
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="PokeTokenBar icon">PokeTokenBar</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#companion">Companion</a>
+      <a href="#install">Install</a>
+      <a class="nav-cta" href="https://github.com/chattymin/PokeTokenBar" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="eyebrow">macOS menu bar · Claude Code + Codex</span>
+    <h1>Your AI coding tokens, <span class="accent">hatched into Pokémon.</span></h1>
+    <p class="lead">PokeTokenBar shows how many tokens you've burned today — right in your menu bar — and turns that usage into a growing Pokémon companion. Spend tokens, hatch an egg, evolve it, graduate it into your Pokédex, and start again.</p>
+
+    <div class="cta-row">
+      <button class="btn btn-primary" data-copy="brew install --cask chattymin/tap/poke-token-bar" data-label="copy">
+        <span>⬇ Install with Homebrew</span>
+      </button>
+      <a class="btn btn-ghost" href="https://github.com/chattymin/PokeTokenBar/releases" target="_blank" rel="noopener">Download from Releases</a>
+    </div>
+
+    <div class="badges">
+      <img src="https://img.shields.io/github/v/release/chattymin/PokeTokenBar?color=e8402f&label=release" alt="Latest release">
+      <img src="https://img.shields.io/badge/macOS-14%2B-2d9cff" alt="macOS 14+">
+      <img src="https://img.shields.io/badge/Swift-6-f05138" alt="Swift 6">
+      <img src="https://img.shields.io/badge/license-MIT-3fb950" alt="MIT license">
+    </div>
+
+    <div class="shot reveal">
+      <img class="menubar" src="assets/menubar.png" alt="Menu bar showing an animated companion and today's total tokens">
+      <div class="window">
+        <div class="titlebar"><i class="dot-r"></i><i class="dot-y"></i><i class="dot-g"></i></div>
+        <img src="assets/screenshot-home.png" alt="PokeTokenBar popover: Charmeleon companion with evolution progress, today's Claude Code + Codex tokens, and official 5h/weekly limit bars">
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== Works with ===== -->
+<div class="strip">
+  <div class="wrap">
+    <span class="label">Works with</span>
+    <span class="chip"><span class="d" style="background:var(--orange)"></span>Claude Code</span>
+    <span class="chip"><span class="d" style="background:var(--green)"></span>Codex</span>
+    <span class="chip"><span class="d" style="background:var(--blue)"></span>ccusage</span>
+    <span class="chip"><span class="d" style="background:var(--red)"></span>PokéAPI</span>
+  </div>
+</div>
+
+<!-- ===== Features ===== -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2>Everything you need, in the menu bar</h2>
+      <p>A glanceable usage tracker for AI coding — no dashboard, no browser tab — with a reason to actually open it.</p>
+    </div>
+    <div class="grid">
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(245,166,35,0.14)">📊</div>
+        <h3>Live token usage</h3>
+        <p>Today's Claude Code + Codex tokens (compact, e.g. <b>253.4M</b>), with optional cost ($) and limit % shown right in the menu bar.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(232,64,47,0.14)">🛑</div>
+        <h3>Official limits</h3>
+        <p>Claude &amp; Codex 5-hour / weekly utilization with live reset countdowns, color-coded as you approach the cap.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(45,156,255,0.14)">📈</div>
+        <h3>Burn-rate forecast</h3>
+        <p>Projects when your current 5-hour window will hit 100% at the current spend rate — so a wall never surprises you.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(63,185,80,0.14)">🥚</div>
+        <h3>Growth companion + Pokédex</h3>
+        <p>Your usage raises a Pokémon that hatches, evolves through its real line, graduates, and fills a Pokédex. The part you look forward to.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(244,196,48,0.14)">🌐</div>
+        <h3>Localized</h3>
+        <p>Full <b>Korean / English / Japanese</b> UI — and Pokémon names in your language, straight from PokéAPI.</p>
+      </div>
+      <div class="feat reveal">
+        <div class="ic" style="background:rgba(153,162,178,0.16)">🔔</div>
+        <h3>Notifications</h3>
+        <p>Alerts when a limit crosses your warning / critical thresholds — and when your companion hatches, evolves, or graduates.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Companion ===== -->
+<section id="companion" class="companion">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">The companion</span>
+      <h2 style="margin-top:16px">Code more, raise a Pokémon</h2>
+      <p>Tokens spent since install grow a Pokémon through its real evolution tree — fetched live from PokéAPI, animated with Gen-V sprites.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal"><div class="emoji">🥚</div><h4>Hatch</h4><p>Spend ~5M tokens and your egg hatches into a rarity-weighted Pokémon.</p><span class="arrow">→</span></div>
+      <div class="step reveal"><div class="emoji">✨</div><h4>Evolve</h4><p>Keep coding to evolve it through its 1 / 2 / 3-stage line, branches included.</p><span class="arrow">→</span></div>
+      <div class="step reveal"><div class="emoji">🎓</div><h4>Graduate</h4><p>Reach the final form + threshold and it graduates — a fresh egg arrives.</p><span class="arrow">→</span></div>
+      <div class="step reveal"><div class="emoji">📖</div><h4>Collect</h4><p>Graduates fill your Pokédex, sorted by rarity with full lines &amp; capture dates.</p></div>
+    </div>
+
+    <div class="companion-shots">
+      <figure class="reveal">
+        <img src="assets/screenshot-collection.png" alt="Collection / Pokédex view: graduated Pokémon sorted by rarity with full evolution lines">
+        <figcaption>Pokédex — graduated Pokémon, sorted by rarity, with full evolution lines.</figcaption>
+      </figure>
+      <figure class="reveal">
+        <img src="assets/screenshot-empty.png" alt="Empty Pokédex with an animated mascot encouraging you to start">
+        <figcaption>An animated mascot nudges you to hatch your first one.</figcaption>
+      </figure>
+    </div>
+
+    <div class="rarity-row reveal">
+      <span class="pill" style="color:var(--muted);border-color:var(--border)">Common · hatches often</span>
+      <span class="pill" style="color:var(--green);border-color:rgba(63,185,80,0.4)">Uncommon</span>
+      <span class="pill" style="color:var(--blue);border-color:rgba(45,156,255,0.4)">Rare</span>
+      <span class="pill" style="color:var(--gold);border-color:rgba(244,196,48,0.45)">Legendary · rarely</span>
+    </div>
+    <p class="muted" style="text-align:center;margin-top:18px;font-size:0.92rem">Rarer Pokémon take more tokens to graduate — roughly 3 days (common) to 24 days (legendary) at heavy use.</p>
+  </div>
+</section>
+
+<!-- ===== Install ===== -->
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <h2>Install in a minute</h2>
+      <p>macOS 14+ (Apple Silicon or Intel). The Homebrew cask handles everything.</p>
+    </div>
+
+    <div class="install-grid">
+      <div class="panel reveal">
+        <h3><span class="step-n">1.</span> Install ccusage</h3>
+        <p class="muted" style="margin:6px 0 0;font-size:0.95rem">Token accounting is powered by <a href="https://github.com/ryoppippi/ccusage" target="_blank" rel="noopener" style="color:var(--blue)">ccusage</a>. Make sure it's on your PATH.</p>
+        <div class="code"><span class="tok-cmd">npm</span> install -g ccusage<button class="copy" data-copy="npm install -g ccusage">Copy</button></div>
+
+        <h3 style="margin-top:28px"><span class="step-n">2.</span> Install PokeTokenBar</h3>
+        <p class="muted" style="margin:6px 0 0;font-size:0.95rem">One Homebrew command — ad-hoc/self-signed; the cask strips the quarantine attribute on install.</p>
+        <div class="code"><span class="tok-cmd">brew</span> install --cask chattymin/tap/poke-token-bar<button class="copy" data-copy="brew install --cask chattymin/tap/poke-token-bar">Copy</button></div>
+
+        <p class="note">Prefer building yourself? <code>swift build</code> · <code>swift test</code> · <code>./scripts/build-app.sh</code> → <code>/Applications</code>. See the <a href="https://github.com/chattymin/PokeTokenBar#install" target="_blank" rel="noopener" style="color:var(--blue)">README</a>.</p>
+      </div>
+
+      <div class="panel reveal">
+        <h3>Requirements</h3>
+        <ul class="req-list" style="margin-top:14px">
+          <li><span class="k">macOS</span><span>14+ (Apple Silicon or Intel)</span></li>
+          <li><span class="k">ccusage</span><span>on your PATH (Homebrew / mise / nvm / asdf …)</span></li>
+          <li><span class="k">Claude / Codex</span><span>at least one, for usage to show</span></li>
+          <li><span class="k">Keychain</span><span>optional — only for official limit %</span></li>
+        </ul>
+        <p class="note">On-device. The app only reads usage via ccusage — it never runs <code>claude</code>/<code>codex</code> model turns. Pokémon data &amp; sprites are fetched at runtime from PokéAPI and cached locally; nothing copyrighted is bundled.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <a class="brand" href="#top"><img src="assets/icon.png" alt="" style="width:26px;height:26px;border-radius:6px">PokeTokenBar</a>
+      <div class="foot-links">
+        <a href="https://github.com/chattymin/PokeTokenBar" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/chattymin/PokeTokenBar/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/chattymin/PokeTokenBar/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/chattymin/PokeTokenBar/blob/main/LICENSE" target="_blank" rel="noopener">License (MIT)</a>
+        <a href="https://github.com/chattymin/PokeTokenBar/blob/main/README.ko.md" target="_blank" rel="noopener">한국어</a>
+        <a href="https://github.com/chattymin/PokeTokenBar/blob/main/README.ja.md" target="_blank" rel="noopener">日本語</a>
+      </div>
+    </div>
+    <p class="disclaimer">
+      Token accounting powered by <a href="https://github.com/ryoppippi/ccusage" target="_blank" rel="noopener" style="color:var(--muted)">ccusage</a>; Pokémon data &amp; sprites by <a href="https://pokeapi.co/" target="_blank" rel="noopener" style="color:var(--muted)">PokéAPI</a>.
+      This is an unofficial, non-commercial fan project. It is <b>not affiliated with, endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon Company.</b>
+      Pokémon and Pokémon character names are trademarks of Nintendo; Pokémon names, data, and sprites are © Nintendo / Game Freak / The Pokémon Company and are fetched at runtime for identification only. The MIT license covers this project's source code only.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Copy-to-clipboard for any [data-copy] element
+  document.querySelectorAll('[data-copy]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var text = el.getAttribute('data-copy');
+      navigator.clipboard.writeText(text).then(function () {
+        if (el.classList.contains('copy')) {
+          var prev = el.textContent; el.textContent = 'Copied'; el.classList.add('done');
+          setTimeout(function () { el.textContent = prev; el.classList.remove('done'); }, 1600);
+        } else {
+          var span = el.querySelector('span') || el; var prev = span.textContent;
+          span.textContent = '✓ Copied to clipboard';
+          setTimeout(function () { span.textContent = prev; }, 1600);
+        }
+      });
+    });
+  });
+
+  // Scroll reveal (progressive enhancement; reduced-motion users see content immediately via CSS)
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+  }
+</script>
+</body>
+</html>
