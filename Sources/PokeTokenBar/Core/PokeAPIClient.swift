@@ -15,7 +15,10 @@ actor PokeAPIClient: PokeProviding {
 
     func line(baseSpeciesID: Int) async throws -> EvoLine {
         let baseSpecies = try await species(baseSpeciesID)
-        let chainURL = URL(string: baseSpecies.evolution_chain.url)!
+        // PokéAPI 응답의 URL — 비정상/빈 값이면 force-unwrap 대신 throw(앱은 알 상태 유지).
+        guard let chainURL = URL(string: baseSpecies.evolution_chain.url) else {
+            throw URLError(.badURL)
+        }
         let chainDTO: ChainDTO = try await get(chainURL)
         let tree = node(from: chainDTO.chain)
         let rarity = Rarity.from(captureRate: baseSpecies.capture_rate,

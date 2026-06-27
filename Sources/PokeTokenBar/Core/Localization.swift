@@ -75,7 +75,6 @@ struct L {
     var onlyOnPress: String { t("누를 때만 Keychain 확인", "Checks Keychain only when pressed", "押した時のみKeychain確認") }
     var launchAtLogin: String { t("로그인 시 자동 시작", "Launch at login", "ログイン時に自動起動") }
     var bundledOnly: String { t(".app 번들로 설치된 경우에만 사용 가능 (scripts/build-app.sh)", "Available only when installed as an .app bundle (scripts/build-app.sh)", ".appバンドルでインストールした場合のみ利用可能 (scripts/build-app.sh)") }
-    var limitAlertThresholds: String { t("한도 알림 임계값", "Limit alert thresholds", "上限通知のしきい値") }
     var notificationsSection: String { t("알림", "Notifications", "通知") }
     var limitNotificationsLabel: String { t("한도 알림", "Limit alerts", "上限通知") }
     var companionNotificationsLabel: String { t("Companion 이벤트 (부화·진화·졸업)", "Companion events (hatch / evolve / graduate)", "コンパニオンイベント（孵化・進化・卒業）") }
@@ -94,7 +93,6 @@ struct L {
     // MARK: 컴패니언
     var finalForm: String { t("최종 진화체", "Final form", "最終進化") }
     func stage(_ i: Int, _ k: Int) -> String { t("진화 단계 \(i) / \(k)", "Stage \(i) / \(k)", "進化段階 \(i) / \(k)") }
-    var waitingFirstToken: String { t("설치 후 첫 토큰을 기다리는 중…", "Waiting for your first tokens…", "最初のトークンを待っています…") }
     var eggIncubating: String { t("🥚 부화 준비 중", "🥚 Incubating", "🥚 孵化の準備中") }
     func eggToHatch(_ amount: String) -> String { t("부화까지 \(amount)", "\(amount) to hatch", "孵化まで \(amount)") }
     func toNextEvolution(_ amount: String) -> String { t("다음 진화까지 \(amount)", "\(amount) to next evolution", "次の進化まで \(amount)") }

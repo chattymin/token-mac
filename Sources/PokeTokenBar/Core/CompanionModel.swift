@@ -73,12 +73,6 @@ struct EvoNode: Codable, Sendable {
 
     /// 최장 경로 길이(형태 수). 분기는 보통 같은 깊이라 대표값으로 사용.
     var depth: Int { 1 + (children.map(\.depth).max() ?? 0) }
-    /// 첫 분기를 따라간 선형 경로의 종 id (목업/표시용)
-    var linearIDs: [Int] {
-        var ids = [speciesID]; var n = self
-        while let c = n.children.first { ids.append(c.speciesID); n = c }
-        return ids
-    }
     func node(withID id: Int) -> EvoNode? {
         if speciesID == id { return self }
         for c in children { if let f = c.node(withID: id) { return f } }
