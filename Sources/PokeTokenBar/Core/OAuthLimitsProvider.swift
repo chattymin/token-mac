@@ -67,10 +67,19 @@ private actor OAuthAccessTokenCache {
             Self.writePokeTokenBarCache(credential.data)
             return credential.accessToken
         }
-        // Claude Keychain 항목은 앱 직접 read 단일 경로로만 읽는다(프롬프트 1회).
-        // 과거의 `security` CLI 보조 경로는 별도 신원이라 같은 항목에 두 번째 ACL 프롬프트를
-        // 띄웠고(1.5s 타임아웃도 대화형에 부적합) 제거함. 최초 1회 허용 후 앱 자체 Keychain
-        // 캐시(writePokeTokenBarCache)에 저장돼 이후 재프롬프트 없음.
+        // 무프롬프트(no-UI) Claude Keychain 읽기. 사용자가 과거 한 번 '항상 허용'했다면
+        // 앱 cdhash 가 항목 ACL 에 등록돼 *프롬프트 없이* 성공한다. 아직 허용 전이거나 접근
+        // 불가면 errSecInteractionNotAllowed 로 조용히 실패 — 다이얼로그가 뜨지 않는다.
+        // 이 경로 덕분에 자동 새로고침이 만료된 토큰을 스스로 재취득해 한도(주간 리셋 포함)를
+        // 갱신한다. 수동 버튼 없이 자동 동작하게 하는 핵심.
+        if let credential = Self.readClaudeKeychainSilently() {
+            cachedCredential = credential
+            Self.writePokeTokenBarCache(credential.data)
+            return credential.accessToken
+        }
+        // 무프롬프트로 토큰을 못 구함 → 명시적 사용자 동작(설정의 갱신 버튼)일 때만 프롬프트를
+        // 동반해 읽는다(최초 1회 '항상 허용' 유도). 이후엔 위 무프롬프트 경로로 자동 동작한다.
+        // `security` CLI 보조 경로는 별도 신원이라 두 번째 ACL 프롬프트를 띄워 제거함.
         guard allowKeychainPrompt else {
             throw LimitsError.keychainInteractionNotAllowed
         }
@@ -79,6 +88,20 @@ private actor OAuthAccessTokenCache {
         cachedCredential = credential
         Self.writePokeTokenBarCache(credential.data)
         return credential.accessToken
+    }
+
+    /// 무프롬프트 Keychain 읽기 — no-UI 쿼리라 권한이 없으면 프롬프트 대신 errSecInteractionNotAllowed.
+    /// '아직 항상 허용 전'(interactionNotAllowed)은 정상 흐름이라 조용히 nil. 그 외(형식 오류·접근 불가)는
+    /// 진단을 위해 로그를 남기고 nil — 자동 경로가 왜 토큰을 못 구했는지 추적 가능하게.
+    private nonisolated static func readClaudeKeychainSilently() -> OAuthCredentialData.Credential? {
+        do {
+            return try readClaudeKeychain(allowKeychainPrompt: false)
+        } catch LimitsError.keychainInteractionNotAllowed {
+            return nil
+        } catch {
+            AppLog.write("silent claude keychain read failed: \(error)")
+            return nil
+        }
     }
 
     func invalidate(removePersistentCache: Bool = false) {
