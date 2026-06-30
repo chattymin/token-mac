@@ -315,7 +315,6 @@
     <span class="label" data-i18n="strip.label">Works with</span>
     <span class="chip"><span class="d" style="background:var(--orange)"></span>Claude Code</span>
     <span class="chip"><span class="d" style="background:var(--green)"></span>Codex</span>
-    <span class="chip"><span class="d" style="background:var(--blue)"></span>ccusage</span>
     <span class="chip"><span class="d" style="background:var(--red)"></span>PokéAPI</span>
   </div>
 </div>
@@ -409,11 +408,7 @@
 
     <div class="install-grid">
       <div class="panel reveal">
-        <h3><span class="step-n">1.</span> <span data-i18n="inst.s1t">Install ccusage</span></h3>
-        <p class="muted" style="margin:6px 0 0;font-size:0.95rem" data-i18n="inst.s1d">Token accounting is powered by ccusage. Make sure it's on your PATH.</p>
-        <div class="code"><span class="tok-cmd">npm</span> install -g ccusage<button class="copy" data-copy="npm install -g ccusage" data-i18n="copy">Copy</button></div>
-
-        <h3 style="margin-top:28px"><span class="step-n">2.</span> <span data-i18n="inst.s2t">Install PokeTokenBar</span></h3>
+        <h3 data-i18n="inst.s2t">Install PokeTokenBar</h3>
         <p class="muted" style="margin:6px 0 0;font-size:0.95rem" data-i18n="inst.s2d">One Homebrew command — ad-hoc/self-signed; the cask strips the quarantine attribute on install.</p>
         <div class="code"><span class="tok-cmd">brew</span> install --cask chattymin/tap/poke-token-bar<button class="copy" data-copy="brew install --cask chattymin/tap/poke-token-bar" data-i18n="copy">Copy</button></div>
 
@@ -424,11 +419,10 @@
         <h3 data-i18n="req.head">Requirements</h3>
         <ul class="req-list" style="margin-top:14px">
           <li><span class="k">macOS</span><span data-i18n="req.macos">14+ (Apple Silicon or Intel)</span></li>
-          <li><span class="k">ccusage</span><span data-i18n="req.ccusage">on your PATH (Homebrew / mise / nvm / asdf …)</span></li>
           <li><span class="k" data-i18n="req.providersK">Claude / Codex</span><span data-i18n="req.providers">at least one, for usage to show</span></li>
           <li><span class="k">Keychain</span><span data-i18n="req.keychain">optional — only for official limit %</span></li>
         </ul>
-        <p class="note" data-i18n="req.note">On-device. The app only reads usage via ccusage — it never runs claude/codex model turns. Pokémon data &amp; sprites are fetched at runtime from PokéAPI and cached locally; nothing copyrighted is bundled.</p>
+        <p class="note" data-i18n="req.note">On-device. The app reads your local Claude Code / Codex logs — it never runs claude/codex model turns. Pokémon data &amp; sprites are fetched at runtime from PokéAPI and cached locally; nothing copyrighted is bundled.</p>
       </div>
     </div>
   </div>
@@ -447,7 +441,7 @@
       </div>
     </div>
     <p class="disclaimer" data-i18n="foot.disclaimer">
-      Token accounting powered by ccusage; Pokémon data &amp; sprites by PokéAPI. This is an unofficial, non-commercial fan project. It is not affiliated with, endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo; names, data, and sprites are © Nintendo / Game Freak / The Pokémon Company, used at runtime for identification only. The MIT license covers this project's source code only.
+      Pokémon data &amp; sprites by PokéAPI. This is an unofficial, non-commercial fan project. It is not affiliated with, endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo; names, data, and sprites are © Nintendo / Game Freak / The Pokémon Company, used at runtime for identification only. The MIT license covers this project's source code only.
     </p>
   </div>
 </footer>
@@ -480,13 +474,12 @@
       "rar.common": "Common · hatches often", "rar.uncommon": "Uncommon", "rar.rare": "Rare", "rar.legendary": "Legendary · rarely",
       "rar.note": "Rarer Pokémon take more tokens to graduate — roughly 3 days (common) to 24 days (legendary) at heavy use.",
       "inst.h2": "Install in a minute", "inst.sub": "macOS 14+ (Apple Silicon or Intel). The Homebrew cask handles everything.",
-      "inst.s1t": "Install ccusage", "inst.s1d": "Token accounting is powered by ccusage. Make sure it's on your PATH.",
       "inst.s2t": "Install PokeTokenBar", "inst.s2d": "One Homebrew command — ad-hoc/self-signed; the cask strips the quarantine attribute on install.",
       "inst.note": "Prefer building yourself? <code>swift build</code> · <code>swift test</code> · <code>./scripts/build-app.sh</code> → <code>/Applications</code>. See the <a href=\"https://github.com/chattymin/PokeTokenBar#install\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue)\">README</a>.",
-      "req.head": "Requirements", "req.macos": "14+ (Apple Silicon or Intel)", "req.ccusage": "on your PATH (Homebrew / mise / nvm / asdf …)",
+      "req.head": "Requirements", "req.macos": "14+ (Apple Silicon or Intel)",
       "req.providersK": "Claude / Codex", "req.providers": "at least one, for usage to show", "req.keychain": "optional — only for official limit %",
-      "req.note": "On-device. The app only reads usage via ccusage — it never runs claude/codex model turns. Pokémon data & sprites are fetched at runtime from PokéAPI and cached locally; nothing copyrighted is bundled.",
-      "foot.disclaimer": "Token accounting powered by ccusage; Pokémon data & sprites by PokéAPI. This is an unofficial, non-commercial fan project. It is not affiliated with, endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo; names, data, and sprites are © Nintendo / Game Freak / The Pokémon Company, used at runtime for identification only. The MIT license covers this project's source code only."
+      "req.note": "On-device. The app reads your local Claude Code / Codex logs — it never runs claude/codex model turns. Pokémon data & sprites are fetched at runtime from PokéAPI and cached locally; nothing copyrighted is bundled.",
+      "foot.disclaimer": "Pokémon data & sprites by PokéAPI. This is an unofficial, non-commercial fan project. It is not affiliated with, endorsed, sponsored, or approved by Nintendo, Game Freak, or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo; names, data, and sprites are © Nintendo / Game Freak / The Pokémon Company, used at runtime for identification only. The MIT license covers this project's source code only."
     },
     ko: {
       "nav.features": "기능", "nav.companion": "파트너", "nav.install": "설치",
@@ -514,13 +507,12 @@
       "rar.common": "Common · 자주 등장", "rar.uncommon": "Uncommon", "rar.rare": "Rare", "rar.legendary": "Legendary · 희귀",
       "rar.note": "희귀할수록 졸업까지 더 많은 토큰이 들어요 — 헤비 유저 기준 common은 약 3일, legendary는 약 24일.",
       "inst.h2": "1분이면 설치 끝", "inst.sub": "macOS 14 이상(Apple Silicon·Intel). 나머지는 Homebrew cask가 알아서 처리해요.",
-      "inst.s1t": "ccusage 먼저 설치", "inst.s1d": "토큰 집계는 ccusage가 담당해요. PATH에 잡혀 있는지 확인하세요.",
       "inst.s2t": "PokeTokenBar 설치", "inst.s2d": "Homebrew 명령 한 줄이면 끝. ad-hoc·자체 서명 앱이라 설치할 때 격리 속성은 cask가 알아서 풀어줘요.",
       "inst.note": "직접 빌드하고 싶다면 <code>swift build</code> · <code>swift test</code> · <code>./scripts/build-app.sh</code> → <code>/Applications</code>. 자세한 내용은 <a href=\"https://github.com/chattymin/PokeTokenBar#install\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue)\">README</a>를 참고하세요.",
-      "req.head": "필요 환경", "req.macos": "14 이상 (Apple Silicon·Intel)", "req.ccusage": "PATH에 설치 (Homebrew·mise·nvm·asdf 등)",
+      "req.head": "필요 환경", "req.macos": "14 이상 (Apple Silicon·Intel)",
       "req.providersK": "Claude·Codex", "req.providers": "둘 중 하나만 있어도 사용량이 표시돼요", "req.keychain": "선택 — 공식 한도(%)를 볼 때만",
-      "req.note": "모든 처리는 기기 안에서 끝나요. 앱은 ccusage로 사용량만 읽을 뿐, claude·codex 모델을 직접 돌리지 않아요. 포켓몬 데이터·스프라이트는 PokéAPI에서 실시간으로 받아 로컬에만 저장하고, 저작물은 번들하지 않습니다.",
-      "foot.disclaimer": "토큰 집계는 ccusage, 포켓몬 데이터·스프라이트는 PokéAPI를 사용합니다. 본 프로젝트는 비공식·비상업 팬 프로젝트로, Nintendo·Game Freak·The Pokémon Company와 제휴하거나 보증·후원·승인을 받지 않았습니다. ‘Pokémon’과 포켓몬 캐릭터 이름은 Nintendo의 상표이며, 이름·데이터·스프라이트의 저작권은 © Nintendo / Game Freak / The Pokémon Company에 있고 식별 목적으로만 런타임에 사용됩니다. MIT 라이선스는 본 프로젝트의 소스 코드에만 적용됩니다."
+      "req.note": "모든 처리는 기기 안에서 끝나요. 앱은 로컬 Claude Code/Codex 로그를 직접 읽을 뿐, claude·codex 모델을 직접 돌리지 않아요. 포켓몬 데이터·스프라이트는 PokéAPI에서 실시간으로 받아 로컬에만 저장하고, 저작물은 번들하지 않습니다.",
+      "foot.disclaimer": "포켓몬 데이터·스프라이트는 PokéAPI를 사용합니다. 본 프로젝트는 비공식·비상업 팬 프로젝트로, Nintendo·Game Freak·The Pokémon Company와 제휴하거나 보증·후원·승인을 받지 않았습니다. ‘Pokémon’과 포켓몬 캐릭터 이름은 Nintendo의 상표이며, 이름·데이터·스프라이트의 저작권은 © Nintendo / Game Freak / The Pokémon Company에 있고 식별 목적으로만 런타임에 사용됩니다. MIT 라이선스는 본 프로젝트의 소스 코드에만 적용됩니다."
     },
     ja: {
       "nav.features": "機能", "nav.companion": "パートナー", "nav.install": "インストール",
@@ -548,13 +540,12 @@
       "rar.common": "Common · よく出現", "rar.uncommon": "Uncommon", "rar.rare": "Rare", "rar.legendary": "Legendary · 希少",
       "rar.note": "レアなほど卒業に多くのトークンが必要です——ヘビーユーザーで common 約3日、legendary 約24日。",
       "inst.h2": "1分でインストール", "inst.sub": "macOS 14 以降（Apple Silicon・Intel）。あとは Homebrew cask におまかせ。",
-      "inst.s1t": "まず ccusage を導入", "inst.s1d": "トークン集計は ccusage が担当します。PATH に通っているか確認してください。",
       "inst.s2t": "PokeTokenBar をインストール", "inst.s2d": "Homebrew のコマンド1行で完了。ad-hoc・自己署名アプリのため、インストール時の隔離属性は cask が自動で解除します。",
       "inst.note": "自分でビルドする場合は <code>swift build</code> · <code>swift test</code> · <code>./scripts/build-app.sh</code> → <code>/Applications</code>。詳しくは <a href=\"https://github.com/chattymin/PokeTokenBar#install\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue)\">README</a> をご覧ください。",
-      "req.head": "動作環境", "req.macos": "14 以降（Apple Silicon・Intel）", "req.ccusage": "PATH 上に導入（Homebrew・mise・nvm・asdf など）",
+      "req.head": "動作環境", "req.macos": "14 以降（Apple Silicon・Intel）",
       "req.providersK": "Claude・Codex", "req.providers": "どちらか一方だけでも使用量を表示", "req.keychain": "任意 — 公式の上限(%)を見るときだけ",
-      "req.note": "処理はすべて端末内で完結。アプリは ccusage で使用量を読み取るだけで、claude・codex のモデルは実行しません。ポケモンのデータ・スプライトは PokéAPI からリアルタイムに取得してローカルにのみ保存し、著作物はバンドルしません。",
-      "foot.disclaimer": "トークン集計は ccusage、ポケモンのデータ・スプライトは PokéAPI を使用しています。本プロジェクトは非公式・非商用のファンプロジェクトであり、任天堂・ゲームフリーク・株式会社ポケモンとの提携、推奨、後援、承認はありません。「ポケモン」およびポケモンのキャラクター名は任天堂の商標であり、名前・データ・スプライトの著作権は © Nintendo / Game Freak / The Pokémon Company に帰属し、識別目的でランタイムに利用しています。MIT ライセンスは本プロジェクトのソースコードのみを対象とします。"
+      "req.note": "処理はすべて端末内で完結。アプリはローカルの Claude Code / Codex ログを直接読み取るだけで、claude・codex のモデルは実行しません。ポケモンのデータ・スプライトは PokéAPI からリアルタイムに取得してローカルにのみ保存し、著作物はバンドルしません。",
+      "foot.disclaimer": "ポケモンのデータ・スプライトは PokéAPI を使用しています。本プロジェクトは非公式・非商用のファンプロジェクトであり、任天堂・ゲームフリーク・株式会社ポケモンとの提携、推奨、後援、承認はありません。「ポケモン」およびポケモンのキャラクター名は任天堂の商標であり、名前・データ・スプライトの著作権は © Nintendo / Game Freak / The Pokémon Company に帰属し、識別目的でランタイムに利用しています。MIT ライセンスは本プロジェクトのソースコードのみを対象とします。"
     }
   };
 
