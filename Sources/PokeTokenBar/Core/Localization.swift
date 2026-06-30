@@ -80,7 +80,7 @@ struct L {
     var companionNotificationsLabel: String { t("Companion 이벤트 (부화·진화·졸업)", "Companion events (hatch / evolve / graduate)", "コンパニオンイベント（孵化・進化・卒業）") }
     var warning: String { t("경고", "Warning", "警告") }
     var critical: String { t("임박", "Critical", "切迫") }
-    var aggregationNote: String { t("토큰 집계 기준: ccusage totalTokens (input + output + cache, 로컬 날짜)", "Token basis: ccusage totalTokens (input + output + cache, local date)", "集計基準: ccusage totalTokens (input + output + cache, ローカル日付)") }
+    var aggregationNote: String { t("토큰 집계 기준: totalTokens (input + output + cache, 로컬 날짜)", "Token basis: totalTokens (input + output + cache, local date)", "集計基準: totalTokens (input + output + cache, ローカル日付)") }
     var close: String { t("닫기", "Close", "閉じる") }
 
     /// 새로고침 간격 라벨 (초 단위 값 → 표시). 0 = 수동.
