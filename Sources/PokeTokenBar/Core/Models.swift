@@ -70,6 +70,17 @@ struct BlockUsage: Decodable, Sendable {
 
     var endDate: Date? { ISO8601Parser.date(from: endTime) }
 
+    init(id: String, startTime: String, endTime: String, isActive: Bool,
+         totalTokens: Int, costUSD: Double, tokensPerMinute: Double?) {
+        self.id = id
+        self.startTime = startTime
+        self.endTime = endTime
+        self.isActive = isActive
+        self.totalTokens = totalTokens
+        self.costUSD = costUSD
+        self.tokensPerMinute = tokensPerMinute
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""

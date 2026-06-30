@@ -190,7 +190,7 @@ final class UsageStore {
 
     // MARK: 생명주기
 
-    init(providers: [any UsageProvider] = [CcusageProvider.claude, CcusageProvider.codex],
+    init(providers: [any UsageProvider] = [LocalClaudeProvider(), LocalCodexProvider()],
          claudeLimitsProvider: any ClaudeLimitsProviding = OAuthLimitsProvider(),
          codexLimitsProvider: any CodexLimitsProviding = CodexRateLimitsProvider(),
          autoRefresh: Bool = true) {
