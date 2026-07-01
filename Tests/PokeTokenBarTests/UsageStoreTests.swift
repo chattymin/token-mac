@@ -236,6 +236,31 @@ final class UsageStoreTests: XCTestCase {
         XCTAssertFalse(store.isStale)
     }
 
+    // MARK: 주/월 누적 유지 (팝오버 깜빡임 회귀 방지)
+
+    /// phase1 재빌드가 이전 스냅샷의 주/월 누적을 이어받지 않으면, 다음 enrichment 가
+    /// 다시 채우기 전까지 nil 이 되어 팝오버 "이번 주/이번 달" 행이 사라졌다 나타난다.
+    /// enrichment 가 주월을 못 채우는(periodsOK=false) 갱신에서도 이전 값이 유지돼야 한다.
+    func testWeekMonthPersistAcrossRefreshWhenEnrichmentSkips() async {
+        let claude = FakeUsageProvider(id: "claude_code", displayName: "Claude Code", daily: todayDaily(1_000))
+        claude.enrichment = ProviderEnrichment(
+            activeBlock: nil, blocksOK: false,
+            weekTotal: PeriodUsage(period: "2026-06-28", totalTokens: 7_000, totalCost: 0),
+            monthTotal: PeriodUsage(period: "2026-06", totalTokens: 30_000, totalCost: 0),
+            periodsOK: true)
+        let store = makeStore(providers: [claude])
+        await store.refresh(scheduleEmptyRetry: false)
+        XCTAssertEqual(store.weekTotalTokens, 7_000)
+        XCTAssertEqual(store.monthTotalTokens, 30_000)
+
+        // 다음 갱신: enrichment 가 주월을 채우지 못함 → 이전 값이 살아있어야 한다.
+        claude.enrichment = ProviderEnrichment(
+            activeBlock: nil, blocksOK: false, weekTotal: nil, monthTotal: nil, periodsOK: false)
+        await store.refresh(scheduleEmptyRetry: false)
+        XCTAssertEqual(store.weekTotalTokens, 7_000, "주 누적이 재빌드에서 사라지면 안 된다")
+        XCTAssertEqual(store.monthTotalTokens, 30_000, "월 누적이 재빌드에서 사라지면 안 된다")
+    }
+
     // MARK: friendlyLimitError 매핑
 
     func testFriendlyLimitErrorMapping() {
