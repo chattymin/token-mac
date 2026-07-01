@@ -319,9 +319,15 @@ final class UsageStore {
             // 날짜 가드: 이전 스냅샷의 어제 데이터는 유지하지 않는다 (자정 동결 방지)
             var prevToday: DailyUsage?
             var prevBlock: BlockUsage?
+            var prevWeek: PeriodUsage?
+            var prevMonth: PeriodUsage?
             if let previous = snapshots.first(where: { $0.providerID == provider.id }) {
                 if previous.today?.date == todayKey { prevToday = previous.today }
                 prevBlock = previous.activeBlock
+                // 주/월 누적도 이어받는다 — phase 2 가 다시 채우기 전까지 nil 로 비면
+                // 팝오버의 "이번 주/이번 달" 행이 사라졌다 나타나 깜빡인다.
+                prevWeek = previous.weekTotal
+                prevMonth = previous.monthTotal
             }
 
             let today: DailyUsage?
@@ -339,6 +345,8 @@ final class UsageStore {
                     displayName: provider.displayName,
                     today: today,
                     activeBlock: prevBlock,
+                    weekTotal: prevWeek,
+                    monthTotal: prevMonth,
                     fetchedAt: Date()))
             }
         }

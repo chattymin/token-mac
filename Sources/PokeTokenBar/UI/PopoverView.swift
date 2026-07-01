@@ -363,18 +363,16 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            if store.isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Button {
-                    Task { await store.refresh() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-                .help(l.refreshNow)
+            // 스피너 스왑을 두지 않는다 — 로컬 파싱이 보이는 오늘 숫자를 즉시 갱신하는데
+            // enrichment/한도(네트워크)까지 기다리는 스피너가 데이터보다 오래 돌아 불필요해 보였다.
+            // 중복 클릭은 refresh() 의 재진입 guard 가 무시하고, 피드백은 아래 "Updated" 시각이 준다.
+            Button {
+                Task { await store.refresh() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
             }
+            .buttonStyle(.borderless)
+            .help(l.refreshNow)
             if let updated = store.lastUpdated {
                 (Text("\(l.updated) ") + Text(updated, style: .relative))
                     .font(.caption)

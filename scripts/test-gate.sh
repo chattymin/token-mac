@@ -31,7 +31,8 @@ echo "▶ swift test (--enable-code-coverage)"
 swift test --enable-code-coverage
 
 PROF=$(find .build -name 'default.profdata' | head -1)
-BIN=$(find .build -name 'PokeTokenBarPackageTests' -type f | head -1)
+# dSYM 안에도 같은 이름의 DWARF 바이너리가 있어 head -1 이 그걸 집으면 llvm-cov 가 실패한다 → 제외.
+BIN=$(find .build -name 'PokeTokenBarPackageTests' -type f ! -path '*.dSYM/*' | head -1)
 if [[ -z "$PROF" || -z "$BIN" ]]; then
   echo "✗ 커버리지 산출물(profdata/binary)을 찾지 못했습니다." >&2
   exit 1
