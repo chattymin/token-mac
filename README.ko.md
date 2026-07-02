@@ -31,7 +31,7 @@ PokeTokenBar는 오늘 사용한 AI 코딩 토큰(Claude Code · Codex)을 macOS
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-home.png" alt="팝오버 홈"><br>
+<img src="assets/screenshot-home.gif" alt="팝오버 홈"><br>
 <b>홈</b> — companion·진화 진행, 오늘 토큰(Claude Code + Codex, 비용 포함), 공식 5h/주간 한도 바.
 </td>
 <td width="50%" valign="top">
@@ -41,13 +41,20 @@ PokeTokenBar는 오늘 사용한 AI 코딩 토큰(Claude Code · Codex)을 macOS
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-empty.png" alt="빈 도감"><br>
+<img src="assets/screenshot-empty.gif" alt="빈 도감"><br>
 <b>빈 도감</b> — 움직이는 마스코트가 시작을 안내합니다.
 </td>
 <td width="50%" valign="top">
-<img src="assets/menubar.png" width="200" alt="메뉴바"><br>
-<b>메뉴바</b> — 움직이는 companion + 오늘 토큰 합계(compact).
+<img src="assets/menubar.gif" width="200" alt="메뉴바"><br>
+<b>메뉴바</b> — 움직이는 companion + 오늘 토큰 합계. 설정에서 비용($)·한도 % 추가 가능.
 </td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="assets/settings.png" alt="설정"><br>
+<b>설정</b> — 메뉴바 표시 항목(토큰/비용/한도 %), 새로고침 간격, 로그인 시 자동 시작, Keychain 끄기, 알림 임계값.
+</td>
+<td width="50%" valign="top"></td>
 </tr>
 </table>
 
@@ -60,12 +67,14 @@ PokeTokenBar는 오늘 사용한 AI 코딩 토큰(Claude Code · Codex)을 macOS
 
 ## 기능
 
-- **실시간 토큰 사용량** — 오늘의 Claude Code + Codex 토큰(compact, 예: `200.7M`), 메뉴바에 비용($)·한도(%) 선택 표시.
+- **실시간 토큰 사용량** — 오늘의 Claude Code + Codex 토큰, 1–15분 간격(또는 수동)으로 갱신.
+- **메뉴바 커스터마이즈** — 오늘 토큰(compact, 예: `200.7M`)·오늘 비용($)·공식 한도 % 를 원하는 조합으로 companion 옆에 표시 — 전부 끄면 캐릭터만 남습니다.
 - **공식 한도** — Claude·Codex 5시간 / 주간 사용률과 리셋 카운트다운.
 - **소진 예측** — 현재 5시간 창이 100%에 도달할 시각 예측.
 - **성장 companion + 도감** — 매일 열어보고 싶어지는 부분.
 - **현지화** — KO / EN / JA UI와 포켓몬 이름 완비.
-- **알림** — 한도가 경고/임박 임계값을 넘으면 알림.
+- **알림** — 한도 경고/임박 임계값(슬라이더 조절) 알림 + companion 이벤트(부화/진화/졸업) 알림 선택.
+- **편의 기능** — 로그인 시 자동 시작, 인앱 업데이트 확인(설정에 현재 버전 표시), Keychain 끄기(한도 섹션만 숨김).
 
 ## 설치
 

@@ -31,7 +31,7 @@ PokeTokenBar は、今日使ったAIコーディングトークン（Claude Code
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-home.png" alt="ポップオーバー ホーム"><br>
+<img src="assets/screenshot-home.gif" alt="ポップオーバー ホーム"><br>
 <b>ホーム</b> — パートナー・進化の進捗、今日のトークン（Claude Code + Codex、コスト付き）、公式の5h/週間上限バー。
 </td>
 <td width="50%" valign="top">
@@ -41,13 +41,20 @@ PokeTokenBar は、今日使ったAIコーディングトークン（Claude Code
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-empty.png" alt="空の図鑑"><br>
+<img src="assets/screenshot-empty.gif" alt="空の図鑑"><br>
 <b>空の図鑑</b> — 動くマスコットが始め方を案内します。
 </td>
 <td width="50%" valign="top">
-<img src="assets/menubar.png" width="200" alt="メニューバー"><br>
-<b>メニューバー</b> — 動くパートナー + 今日のトークン合計（compact）。
+<img src="assets/menubar.gif" width="200" alt="メニューバー"><br>
+<b>メニューバー</b> — 動くパートナー + 今日のトークン合計。設定でコスト($)・上限 % も追加できます。
 </td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="assets/settings.png" alt="設定"><br>
+<b>設定</b> — メニューバー表示項目（トークン／コスト／上限 %）、更新間隔、ログイン時に起動、Keychain オフ、通知の閾値。
+</td>
+<td width="50%" valign="top"></td>
 </tr>
 </table>
 
@@ -60,12 +67,14 @@ PokeTokenBar は、今日使ったAIコーディングトークン（Claude Code
 
 ## 機能
 
-- **リアルタイムのトークン使用量** — 今日の Claude Code + Codex トークン（compact、例：`200.7M`）、メニューバーにコスト($)・上限(%)を任意表示。
+- **リアルタイムのトークン使用量** — 今日の Claude Code + Codex トークンを 1–15分間隔（または手動）で更新。
+- **メニューバーを自分好みに** — 今日のトークン（compact、例：`200.7M`）・今日のコスト($)・公式上限 % を好きな組み合わせでパートナーの隣に表示 — すべてオフにするとキャラクターだけに。
 - **公式の上限** — Claude・Codex の 5時間 / 週間 使用率とリセットのカウントダウン。
 - **消費予測** — 現在の5時間ウィンドウが100%に達する時刻を予測。
 - **育成パートナー + 図鑑** — 毎日開きたくなる部分。
 - **多言語対応** — KO / EN / JA の UI とポケモン名。
-- **通知** — 上限が警告／危険の閾値を超えると通知。
+- **通知** — 上限の警告／危険の閾値（スライダーで調整）による通知に加え、パートナーのイベント（孵化／進化／卒業）通知も選べます。
+- **便利機能** — ログイン時に自動起動、アプリ内アップデート確認（設定に現在のバージョンを表示）、Keychain オフ（上限セクションのみ非表示）。
 
 ## インストール
 

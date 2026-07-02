@@ -31,7 +31,7 @@ PokeTokenBar shows how many AI coding tokens you've burned today — Claude Code
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-home.png" alt="Popover home"><br>
+<img src="assets/screenshot-home.gif" alt="Popover home"><br>
 <b>Home</b> — companion + evolution progress, today's tokens (Claude Code + Codex with cost), and official 5h/weekly limit bars.
 </td>
 <td width="50%" valign="top">
@@ -41,13 +41,20 @@ PokeTokenBar shows how many AI coding tokens you've burned today — Claude Code
 </tr>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/screenshot-empty.png" alt="Empty Pokédex"><br>
+<img src="assets/screenshot-empty.gif" alt="Empty Pokédex"><br>
 <b>Empty Pokédex</b> — an animated mascot nudges you to start.
 </td>
 <td width="50%" valign="top">
-<img src="assets/menubar.png" width="200" alt="Menu bar"><br>
-<b>Menu bar</b> — animated companion + today's total tokens (compact).
+<img src="assets/menubar.gif" width="200" alt="Menu bar"><br>
+<b>Menu bar</b> — animated companion + today's tokens; add cost ($) or limit % in Settings.
 </td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="assets/settings.png" alt="Settings"><br>
+<b>Settings</b> — menu-bar items (tokens / cost / limit %), refresh interval, launch at login, Keychain opt-out, and notification thresholds.
+</td>
+<td width="50%" valign="top"></td>
 </tr>
 </table>
 
@@ -60,12 +67,14 @@ PokeTokenBar shows how many AI coding tokens you've burned today — Claude Code
 
 ## Features
 
-- **Live token usage** — today's Claude Code + Codex tokens (compact, e.g. `200.7M`), with optional cost ($) and limit % in the menu bar.
+- **Live token usage** — today's Claude Code + Codex tokens, refreshed every 1–15 min (or manually).
+- **Menu bar, your way** — show any mix of today's tokens (compact, e.g. `200.7M`), today's cost (`$`), and official limit `%` next to the companion — or none, for a character-only menu bar.
 - **Official limits** — Claude & Codex 5-hour / weekly utilization with reset countdowns.
 - **Burn-rate forecast** — projects when the current 5h window hits 100%.
 - **Growth companion + Pokédex** — the part you actually look forward to.
 - **Localized** — full KO / EN / JA UI and Pokémon names.
-- **Notifications** — alerts when a limit crosses your warning / critical thresholds.
+- **Notifications** — limit alerts with adjustable warning / critical thresholds, plus optional companion events (hatch / evolve / graduate).
+- **Quality of life** — launch at login, in-app update check (current version shown in Settings), and a Keychain opt-out that just hides the limits section.
 
 ## Install
 
